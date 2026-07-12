@@ -31,6 +31,7 @@ class Settings:
     auto_rename: bool = True
     keep_partial: bool = True
     language: str = "fr"
+    theme: str = "light"
 
     def validate(self):
         if not 1 <= self.concurrency <= 8:

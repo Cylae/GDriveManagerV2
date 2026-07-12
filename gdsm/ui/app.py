@@ -28,6 +28,10 @@ class App:
         self.root = tk.Tk()
         self.root.title("GDrive Space Manager — project_v0.3")
         self.root.geometry("1250x760")
+        if self.settings.theme == "dark":
+            self.root.tk_setPalette(background='#333', foreground='white')
+        else:
+            self.root.tk_setPalette(background='white', foreground='black')
         self._widgets()
         self.root.after(100, self._drain)
         self.status.set("Checking cache...")
@@ -68,14 +72,29 @@ class App:
         self.search.trace_add("write", on_search_change)
 
         ttk.Entry(row, textvariable=self.search, width=30).pack(side="left", padx=5)
+
+        main_paned = ttk.PanedWindow(self.root, orient=tk.VERTICAL)
+        main_paned.pack(fill="both", expand=True, padx=8, pady=8)
+
         cols = ("name", "path", "type", "size", "modified", "owner")
         self.tree = ttk.Treeview(
-            self.root, columns=cols, show="headings", selectmode="extended"
+            main_paned, columns=cols, show="headings", selectmode="extended"
         )
         for c, w in zip(cols, (250, 300, 230, 100, 160, 150)):
             self.tree.heading(c, text=c.title())
             self.tree.column(c, width=w, stretch=c in ("name", "path", "type"))
-        self.tree.pack(fill="both", expand=True, padx=8, pady=8)
+        main_paned.add(self.tree, weight=3)
+
+        top_items_frame = ttk.LabelFrame(main_paned, text="Top largest items")
+        self.top_items_tree = ttk.Treeview(
+            top_items_frame, columns=("name", "size"), show="headings", selectmode="none", height=5
+        )
+        self.top_items_tree.heading("name", text="Name")
+        self.top_items_tree.heading("size", text="Size")
+        self.top_items_tree.column("name", width=600, stretch=True)
+        self.top_items_tree.column("size", width=150, stretch=False)
+        self.top_items_tree.pack(fill="both", expand=True, padx=5, pady=5)
+        main_paned.add(top_items_frame, weight=1)
 
         def sort_column(col, reverse):
             lst = [(self.tree.set(k, col), k) for k in self.tree.get_children("")]
@@ -192,6 +211,11 @@ class App:
                 ),
             )
 
+        self.top_items_tree.delete(*self.top_items_tree.get_children())
+        sorted_items = sorted(self.items, key=lambda x: x.size, reverse=True)[:10]
+        for idx, it in enumerate(sorted_items):
+            self.top_items_tree.insert("", "end", iid=str(idx), values=(it.name, it.size))
+
     def selected(self):
         return [self.items[int(x)] for x in self.tree.selection()]
 
@@ -257,16 +281,46 @@ class App:
             jobs = []
             for i in chosen:
                 if i.is_native:
-                    self.events.put(
-                        (
-                            "queue",
-                            (
-                                i.name,
-                                "skipped",
-                                "Workspace export is never auto-trashed",
-                            ),
-                        )
-                    )
+                    target = safe_target(self.dest.get(), i.name)
+                    status, path, detail = export_workspace_file(api, i, target)
+                    if status == "exported_unverifiable":
+                        resp_queue = queue.Queue()
+                        def ask_export():
+                            class CustomDialog:
+                                def __init__(self, parent):
+                                    self.top = tk.Toplevel(parent)
+                                    self.top.title("Confirm Trash Workspace Export")
+                                    ttk.Label(
+                                        self.top,
+                                        text=f"Exported Workspace file {i.name}.\nMD5 cannot be verified. Are you sure you want to trash it?",
+                                    ).pack(padx=20, pady=10)
+                                    self.result = "No"
+                                    btn_frame = ttk.Frame(self.top)
+                                    btn_frame.pack(pady=10)
+
+                                    def set_res(val):
+                                        self.result = val
+                                        self.top.destroy()
+
+                                    ttk.Button(
+                                        btn_frame, text="Yes", command=lambda: set_res("Yes")
+                                    ).pack(side="left", padx=5)
+                                    ttk.Button(
+                                        btn_frame, text="No", command=lambda: set_res("No")
+                                    ).pack(side="left", padx=5)
+                                    self.top.wait_window()
+
+                            d = CustomDialog(self.root)
+                            resp_queue.put(d.result)
+
+                        self.root.after_idle(ask_export)
+                        if resp_queue.get() == "Yes":
+                            api.trash(i)
+                            self.events.put(("queue", (i.name, "trashed", "Moved to Drive Trash")))
+                        else:
+                            self.events.put(("queue", (i.name, "skipped", "User cancelled trash of export")))
+                    else:
+                        self.events.put(("queue", (i.name, "skipped", f"Export failed: {detail}")))
                     continue
                 jobs.append((i, safe_target(self.dest.get(), i.name)))
 
@@ -438,7 +492,11 @@ class App:
                     name, done, total, speed, chunk = data
                     self.stats.bytes_transferred += chunk
                     self.progress["value"] = 0 if not total else done * 100 / total
-                    self.status.set(f"{name} — {speed / 1024 / 1024:.2f} MB/s")
+                    eta_str = ""
+                    if speed > 0 and total > done:
+                        eta_sec = (total - done) / speed
+                        eta_str = f" | ETA: {eta_sec:.0f}s"
+                    self.status.set(f"{name} — {speed / 1024 / 1024:.2f} MB/s{eta_str}")
                 elif kind == "status":
                     self.status.set(data)
                 elif kind == "error":
