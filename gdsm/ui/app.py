@@ -173,7 +173,9 @@ class App:
             if (
                 q
                 and q
-                not in (item.name + " " + item.mime_type + " " + item.drive_path).lower()
+                not in (
+                    item.name + " " + item.mime_type + " " + item.drive_path
+                ).lower()
             ):
                 continue
             self.tree.insert(
@@ -279,9 +281,7 @@ class App:
             yes_to_all = False
             for item, result in engine.download_many(jobs, self.cancel, progress):
                 status, path, detail = result
-                done += (
-                    item.size if status in ("verified", "already_verified") else 0
-                )
+                done += item.size if status in ("verified", "already_verified") else 0
 
                 if status in ("verified", "already_verified"):
                     if not yes_to_all:
