@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import os
-import tempfile
+import uuid
 from pathlib import Path
 from ..domain.models import Settings
 from .secrets import save_secret
@@ -29,17 +29,14 @@ class JsonStore:
     def save(self, settings: Settings) -> None:
         settings.validate()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(prefix=".config-", dir=self.path.parent, text=True)
+        tmp = self.path.with_name(f".config-{uuid.uuid4().hex}")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            with open(fd, "w", encoding="utf-8") as f:
                 json.dump(settings.to_json(), f, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.path)
-            try:
-                os.chmod(self.path, 0o600)
-            except OSError:
-                pass
         finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+            if tmp.exists():
+                tmp.unlink()

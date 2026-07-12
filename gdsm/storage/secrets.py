@@ -109,7 +109,8 @@ def _save_win32(key: str, value: str) -> None:
             import os
 
             path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
-            with open(path, "wb") as f:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with open(fd, "wb") as f:
                 f.write(encrypted_data)
         finally:
             LocalFree(data_out.pbData)
