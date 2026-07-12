@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from gdsm.domain.models import DriveItem, Settings
-from gdsm.utils.paths import safe_name, safe_target, unique_target
+from unittest.mock import patch, MagicMock
+from gdsm.utils.paths import safe_name, safe_target, unique_target, ensure_space
 from gdsm.services.verification import verify_binary
 
 
@@ -53,6 +54,23 @@ class SafetyTests(unittest.TestCase):
     def test_settings(self):
         with self.assertRaises(ValueError):
             Settings(concurrency=9).validate()
+
+    @patch("gdsm.utils.paths.shutil.disk_usage")
+    def test_ensure_space_success(self, mock_disk_usage):
+        mock_usage = MagicMock()
+        mock_usage.free = 1000
+        mock_disk_usage.return_value = mock_usage
+        # Should not raise any exception
+        ensure_space(Path("."), 500, 100)
+
+    @patch("gdsm.utils.paths.shutil.disk_usage")
+    def test_ensure_space_insufficient(self, mock_disk_usage):
+        mock_usage = MagicMock()
+        mock_usage.free = 500
+        mock_disk_usage.return_value = mock_usage
+        with self.assertRaises(OSError) as cm:
+            ensure_space(Path("."), 500, 100)
+        self.assertIn("insufficient disk space: 500 available, 600 required", str(cm.exception))
 
 
 if __name__ == "__main__":
