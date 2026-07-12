@@ -39,11 +39,11 @@ class InventoryCache:
     def save(self, items: list[DriveItem]):
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(
-            prefix=".cache-", dir=self.cache_file.parent, text=True
+            prefix=".cache-", dir=self.cache_file.parent, text=False
         )
         try:
             data = {"version": CACHE_VERSION, "items": [i.__dict__ for i in items]}
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
                 json.dump(data, f)
                 f.flush()
                 os.fsync(f.fileno())
