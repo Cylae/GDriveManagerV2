@@ -25,7 +25,7 @@ def delete_secret(key: str) -> None:
 
 # macOS / Linux Fallback using keyring
 def _save_keyring(key: str, value: str) -> None:
-    import keyring
+    import keyring  # type: ignore
 
     try:
         keyring.set_password("GDriveSpaceManager", key, value)
@@ -43,7 +43,7 @@ def _save_keyring(key: str, value: str) -> None:
 
 
 def _load_keyring(key: str) -> Optional[str]:
-    import keyring
+    import keyring  # type: ignore
 
     try:
         return keyring.get_password("GDriveSpaceManager", key)
@@ -64,7 +64,7 @@ def _load_keyring(key: str) -> Optional[str]:
 
 
 def _delete_keyring(key: str) -> None:
-    import keyring
+    import keyring  # type: ignore
 
     try:
         keyring.delete_password("GDriveSpaceManager", key)
