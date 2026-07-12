@@ -30,7 +30,7 @@ class TransferEngine:
         target.parent.mkdir(parents=True, exist_ok=True)
         ensure_space(target.parent, item.size, self.s.reserve_bytes)
         if target.exists():
-            ok, state, _, detail = verify_binary(item, target)
+            ok, state, _, detail = verify_binary(item, target, cancel=cancel)
             if ok:
                 return "already_verified", str(target), detail
             target = unique_target(target, self.s.auto_rename)
@@ -44,7 +44,7 @@ class TransferEngine:
                     if attempt == self.s.retries:
                         raise
                     time.sleep(min(60, 2**attempt) + 0.2)
-            ok, state, sha, detail = verify_binary(item, partial)
+            ok, state, sha, detail = verify_binary(item, partial, cancel=cancel)
             if not ok:
                 raise OSError(detail)
             os.replace(partial, target)
