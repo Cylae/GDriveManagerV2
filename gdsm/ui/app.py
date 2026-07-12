@@ -38,6 +38,12 @@ class App:
         threading.Thread(target=self._startup_worker, daemon=True).start()
 
     def _widgets(self):
+        self._setup_toolbar()
+        self._setup_controls()
+        self._setup_treeviews()
+        self._setup_status_bar()
+
+    def _setup_toolbar(self):
         top = ttk.Frame(self.root, padding=8)
         top.pack(fill="x")
         for text, cmd in [
@@ -52,6 +58,8 @@ class App:
             ("Logs", self.open_logs),
         ]:
             ttk.Button(top, text=text, command=cmd).pack(side="left", padx=3)
+
+    def _setup_controls(self):
         row = ttk.Frame(self.root, padding=(8, 0))
         row.pack(fill="x")
         ttk.Label(row, text="Destination").pack(side="left")
@@ -73,6 +81,7 @@ class App:
 
         ttk.Entry(row, textvariable=self.search, width=30).pack(side="left", padx=5)
 
+    def _setup_treeviews(self):
         main_paned = ttk.PanedWindow(self.root, orient=tk.VERTICAL)
         main_paned.pack(fill="both", expand=True, padx=8, pady=8)
 
@@ -114,6 +123,7 @@ class App:
                 c, text=c.title(), command=lambda _c=c: sort_column(_c, False)
             )
 
+    def _setup_status_bar(self):
         self.progress = ttk.Progressbar(self.root, maximum=100)
         self.progress.pack(fill="x", padx=8)
         self.status = tk.StringVar(value="Ready")
