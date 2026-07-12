@@ -27,7 +27,7 @@ The codebase is fully refactored into a clean, strictly layered architecture:
 - **Safe Cancellation:** Long-running network operations can be accurately interrupted via a `threading.Event` cancellation token without triggering false trash calls.
 
 #### 🔐 Authentication & Secret Storage
-- **Secure Persistence:** OAuth refresh tokens are securely stored using Windows DPAPI or macOS/Linux `keyring` (with encrypted file fallback).
+- **Secure Persistence:** OAuth refresh tokens are securely stored using Windows DPAPI or macOS/Linux `keyring` (with restricted permissions file fallback).
 - **No Plaintext Secrets:** Secrets are removed from plaintext configuration files. (Legacy config files are automatically migrated on launch).
 - **Security Rule:** Client IDs, secrets, tokens, or credentials are never written to logs, standard output, or the repository.
 
@@ -139,7 +139,7 @@ Le code source est entièrement refactorisé selon une architecture propre et st
 - **Annulation Sécurisée :** Les opérations réseau longues peuvent être interrompues avec précision via un jeton d'annulation `threading.Event`, sans déclencher de faux appels à la corbeille.
 
 #### 🔐 Authentification & Stockage des Secrets
-- **Persistance Sécurisée :** Les jetons de rafraîchissement OAuth sont stockés de manière sécurisée en utilisant Windows DPAPI ou `keyring` sur macOS/Linux (avec un fichier chiffré en solution de repli).
+- **Persistance Sécurisée :** Les jetons de rafraîchissement OAuth sont stockés de manière sécurisée en utilisant Windows DPAPI ou `keyring` sur macOS/Linux (avec un fichier local à permissions restreintes en solution de repli).
 - **Pas de Secrets en Texte Clair :** Les secrets sont retirés des fichiers de configuration en texte clair. (Les anciens fichiers de configuration sont migrés automatiquement au lancement).
 - **Règle de Sécurité :** Les identifiants clients (Client ID), secrets, jetons ou accréditations ne sont jamais écrits dans les journaux (logs), sur la sortie standard, ou dans le dépôt.
 
