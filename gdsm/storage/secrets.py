@@ -36,9 +36,11 @@ def _save_keyring(key: str, value: str) -> None:
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)
         fallback_path = os.path.join(d, f".{key}.secret")
-        with open(fallback_path, "w", encoding="utf-8") as f:
+
+        # Open the file securely, preventing any window of time where permissions are weak
+        fd = os.open(fallback_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with open(fd, "w", encoding="utf-8") as f:
             f.write(base64.b64encode(value.encode()).decode())
-        os.chmod(fallback_path, 0o600)
 
 
 def _load_keyring(key: str) -> Optional[str]:
