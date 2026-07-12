@@ -1,6 +1,5 @@
 import unittest
 import tempfile
-import os
 from pathlib import Path
 from gdsm.domain.models import DriveItem
 from gdsm.services.cache import InventoryCache
