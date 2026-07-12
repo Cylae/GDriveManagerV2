@@ -1,6 +1,6 @@
 import json
 import os
-import tempfile
+import uuid
 import time
 from pathlib import Path
 from ..domain.models import DriveItem
@@ -38,16 +38,15 @@ class InventoryCache:
 
     def save(self, items: list[DriveItem]):
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(
-            prefix=".cache-", dir=self.cache_file.parent, text=False
-        )
+        tmp = self.cache_file.with_name(f".cache-{uuid.uuid4().hex}")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         try:
             data = {"version": CACHE_VERSION, "items": [i.__dict__ for i in items]}
-            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            with open(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.cache_file)
         finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+            if tmp.exists():
+                tmp.unlink()
