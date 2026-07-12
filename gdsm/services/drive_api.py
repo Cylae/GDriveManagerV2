@@ -32,6 +32,14 @@ class DriveApi:
             self.items_by_id = {i.id: i for i in cached_items}
             return cached_items, "cached"
 
+        all_items = self._fetch_all_items(cancel)
+        self.items_by_id = {i.id: i for i in all_items}
+        for i in all_items:
+            i.drive_path = self.resolve_path(i.id)
+        cache.save(all_items)
+        return all_items, "live"
+
+    def _fetch_all_items(self, cancel=None):
         all_items = []
         page = None
         fields = "nextPageToken,files(id,name,mimeType,size,quotaBytesUsed,md5Checksum,modifiedTime,parents,owners(displayName),capabilities(canDownload,canTrash),shortcutDetails(targetId))"
@@ -86,11 +94,7 @@ class DriveApi:
                 all_items.append(item)
             page = data.get("nextPageToken")
             if not page:
-                self.items_by_id = {i.id: i for i in all_items}
-                for i in all_items:
-                    i.drive_path = self.resolve_path(i.id)
-                cache.save(all_items)
-                return all_items, "live"
+                return all_items
 
     def binary_url(self, item):
         return (
