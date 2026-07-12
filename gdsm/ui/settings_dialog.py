@@ -17,6 +17,7 @@ class SettingsDialog:
         self.retries = tk.IntVar(value=self.settings.retries)
         self.auto_rename = tk.BooleanVar(value=self.settings.auto_rename)
         self.keep_partial = tk.BooleanVar(value=self.settings.keep_partial)
+        self.theme = tk.StringVar(value=self.settings.theme)
 
         self._build_ui()
 
@@ -55,9 +56,24 @@ class SettingsDialog:
             f, text="Keep partial downloads on error", variable=self.keep_partial
         ).grid(row=5, column=0, columnspan=2, sticky="w", pady=5)
 
-        ttk.Button(f, text="Save", command=self.save).grid(
-            row=6, column=0, columnspan=2, pady=15
-        )
+        ttk.Label(f, text="Theme:").grid(row=6, column=0, sticky="w", pady=5)
+        ttk.Combobox(
+            f, textvariable=self.theme, values=["light", "dark"], state="readonly"
+        ).grid(row=6, column=1, sticky="w", pady=5)
+
+        btn_frame = ttk.Frame(f)
+        btn_frame.grid(row=7, column=0, columnspan=2, pady=15)
+        ttk.Button(btn_frame, text="Save", command=self.save).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Logout", command=self.logout).pack(side="left", padx=5)
+
+    def logout(self):
+        from ..storage.secrets import delete_secret
+        delete_secret("refresh_token")
+        self.settings.client_id = ""
+        self.store.save(self.settings)
+        self.client_id.set("")
+        from tkinter import messagebox
+        messagebox.showinfo("Logout", "Logged out successfully. All local credentials removed.", parent=self.top)
 
     def save(self):
         try:
@@ -67,6 +83,7 @@ class SettingsDialog:
             self.settings.retries = self.retries.get()
             self.settings.auto_rename = self.auto_rename.get()
             self.settings.keep_partial = self.keep_partial.get()
+            self.settings.theme = self.theme.get()
             self.store.save(self.settings)
             self.top.destroy()
         except ValueError as e:
