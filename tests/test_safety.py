@@ -40,7 +40,7 @@ class SafetyTests(unittest.TestCase):
             "x.bin",
             "application/octet-stream",
             5,
-            hashlib.md5(b"hello").hexdigest(),
+            hashlib.md5(b"hello", usedforsecurity=False).hexdigest(),
             "",
             "",
             (),

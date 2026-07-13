@@ -38,13 +38,20 @@ class Logger:
             "data": data,
         }
 
+        import os
+
+        flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+
         # Write JSONL
-        with jsonl_path.open("a", encoding="utf-8") as f:
+        fd_jsonl = os.open(jsonl_path, flags, 0o600)
+        with open(fd_jsonl, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
         # Write human-readable text
         text_line = f"[{ts}] [{level}] {message}"
         if data:
             text_line += f" | {json.dumps(data, ensure_ascii=False)}"
-        with log_path.open("a", encoding="utf-8") as f:
+
+        fd_log = os.open(log_path, flags, 0o600)
+        with open(fd_log, "a", encoding="utf-8") as f:
             f.write(text_line + "\n")
