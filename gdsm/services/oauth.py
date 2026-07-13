@@ -9,8 +9,35 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Dict, Any
 from ..domain.models import Settings
 from ..storage.secrets import load_secret, delete_secret, save_secret
+
+
+class OAuthCallbackServer(ThreadingHTTPServer):
+    def __init__(self, server_address: tuple[str, int], RequestHandlerClass: type[BaseHTTPRequestHandler]):
+        super().__init__(server_address, RequestHandlerClass)
+        self.oauth_result: Dict[str, str] = {}
+        self.oauth_ready = threading.Event()
+
+
+class OAuthCallbackHandler(BaseHTTPRequestHandler):
+    server: OAuthCallbackServer
+
+    def do_GET(self) -> None:
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        self.server.oauth_result["code"] = q.get("code", [""])[0]
+        self.server.oauth_result["state"] = q.get("state", [""])[0]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(
+            b"<h2>Authentication completed. You may close this tab.</h2>"
+        )
+        self.server.oauth_ready.set()
+
+    def log_message(self, *args: Any) -> None:
+        pass
 
 
 class GoogleOAuth:
@@ -64,26 +91,8 @@ class GoogleOAuth:
             .decode()
         )
         state = secrets.token_urlsafe(24)
-        result = {}
-        ready = threading.Event()
 
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
-                result["code"] = q.get("code", [""])[0]
-                result["state"] = q.get("state", [""])[0]
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(
-                    b"<h2>Authentication completed. You may close this tab.</h2>"
-                )
-                ready.set()
-
-            def log_message(self, *args):
-                pass
-
-        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        server = OAuthCallbackServer(("127.0.0.1", 0), OAuthCallbackHandler)
         redirect = f"http://127.0.0.1:{server.server_port}/"
         thread = threading.Thread(target=server.handle_request, daemon=True)
         thread.start()
@@ -102,15 +111,19 @@ class GoogleOAuth:
             "https://accounts.google.com/o/oauth2/v2/auth?"
             + urllib.parse.urlencode(params)
         )
-        if not ready.wait(300):
+        if not server.oauth_ready.wait(300):
             server.server_close()
             raise TimeoutError("Google sign-in timed out")
         server.server_close()
-        if result.get("state") != state or not result.get("code"):
+
+        result_state = server.oauth_result.get("state")
+        result_code = server.oauth_result.get("code")
+
+        if result_state != state or not result_code:
             raise RuntimeError("OAuth cancelled or state validation failed")
         return self._exchange(
             {
-                "code": result["code"],
+                "code": result_code,
                 "client_id": self.s.client_id,
                 "redirect_uri": redirect,
                 "grant_type": "authorization_code",
