@@ -5,7 +5,7 @@ from ..domain.models import DriveItem
 
 
 def checksums(path: Path, sha256: bool = True, cancel=None) -> tuple[str, str | None]:
-    md5 = hashlib.md5()
+    md5 = hashlib.md5(usedforsecurity=False)
     sha = hashlib.sha256() if sha256 else None
     with path.open("rb") as src:
         for block in iter(lambda: src.read(1024 * 1024), b""):

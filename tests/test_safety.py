@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from gdsm.domain.models import DriveItem, Settings
 from gdsm.utils.paths import safe_name, safe_target, unique_target
+from gdsm.utils.security import sanitize_csv_field
 from gdsm.services.verification import verify_binary
 
 
@@ -39,7 +40,7 @@ class SafetyTests(unittest.TestCase):
             "x.bin",
             "application/octet-stream",
             5,
-            hashlib.md5(b"hello").hexdigest(),
+            hashlib.md5(b"hello", usedforsecurity=False).hexdigest(),
             "",
             "",
             (),
@@ -53,6 +54,19 @@ class SafetyTests(unittest.TestCase):
     def test_settings(self):
         with self.assertRaises(ValueError):
             Settings(concurrency=9).validate()
+
+    def test_sanitize_csv_field(self):
+        self.assertEqual(sanitize_csv_field("=1+1"), "'=1+1")
+        self.assertEqual(sanitize_csv_field("+1+1"), "'+1+1")
+        self.assertEqual(sanitize_csv_field("-1+1"), "'-1+1")
+        self.assertEqual(sanitize_csv_field("@SUM(1,1)"), "'@SUM(1,1)")
+        self.assertEqual(sanitize_csv_field("\t=1+1"), "'\t=1+1")
+        self.assertEqual(sanitize_csv_field("\r=1+1"), "'\r=1+1")
+        self.assertEqual(sanitize_csv_field("hello"), "hello")
+        self.assertEqual(sanitize_csv_field("1+1"), "1+1")
+        self.assertEqual(sanitize_csv_field(""), "")
+        self.assertEqual(sanitize_csv_field(123), 123)
+        self.assertEqual(sanitize_csv_field(None), None)
 
 
 if __name__ == "__main__":
