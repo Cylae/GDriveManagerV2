@@ -282,6 +282,41 @@ class App:
         except Exception as e:
             self.events.put(("error", str(e)))
 
+    def _ask_user(self, title, message, buttons):
+        resp_queue = queue.Queue()
+
+        def ask():
+            class CustomDialog:
+                def __init__(self, parent):
+                    self.top = tk.Toplevel(parent)
+                    self.top.title(title)
+                    ttk.Label(
+                        self.top,
+                        text=message,
+                    ).pack(padx=20, pady=10)
+                    self.result = "No"
+                    btn_frame = ttk.Frame(self.top)
+                    btn_frame.pack(pady=10)
+
+                    def set_res(val):
+                        self.result = val
+                        self.top.destroy()
+
+                    for text in buttons:
+                        ttk.Button(
+                            btn_frame,
+                            text=text,
+                            command=lambda t=text: set_res(t),
+                        ).pack(side="left", padx=5)
+
+                    self.top.wait_window()
+
+            d = CustomDialog(self.root)
+            resp_queue.put(d.result)
+
+        self.root.after_idle(ask)
+        return resp_queue.get()
+
     def trash(self):
         chosen = [x for x in self.selected() if x.can_trash]
         if not chosen:
@@ -302,37 +337,12 @@ class App:
                     target = safe_target(self.dest.get(), i.name)
                     status, path, detail = export_workspace_file(api, i, target)
                     if status == "exported_unverifiable":
-                        resp_queue = queue.Queue()
-                        def ask_export():
-                            class CustomDialog:
-                                def __init__(self, parent):
-                                    self.top = tk.Toplevel(parent)
-                                    self.top.title("Confirm Trash Workspace Export")
-                                    ttk.Label(
-                                        self.top,
-                                        text=f"Exported Workspace file {i.name}.\nMD5 cannot be verified. Are you sure you want to trash it?",
-                                    ).pack(padx=20, pady=10)
-                                    self.result = "No"
-                                    btn_frame = ttk.Frame(self.top)
-                                    btn_frame.pack(pady=10)
-
-                                    def set_res(val):
-                                        self.result = val
-                                        self.top.destroy()
-
-                                    ttk.Button(
-                                        btn_frame, text="Yes", command=lambda: set_res("Yes")
-                                    ).pack(side="left", padx=5)
-                                    ttk.Button(
-                                        btn_frame, text="No", command=lambda: set_res("No")
-                                    ).pack(side="left", padx=5)
-                                    self.top.wait_window()
-
-                            d = CustomDialog(self.root)
-                            resp_queue.put(d.result)
-
-                        self.root.after_idle(ask_export)
-                        if resp_queue.get() == "Yes":
+                        ans = self._ask_user(
+                            "Confirm Trash Workspace Export",
+                            f"Exported Workspace file {i.name}.\nMD5 cannot be verified. Are you sure you want to trash it?",
+                            ["Yes", "No"],
+                        )
+                        if ans == "Yes":
                             api.trash(i)
                             self.events.put(("queue", (i.name, "trashed", "Moved to Drive Trash")))
                         else:
@@ -351,52 +361,11 @@ class App:
 
                 if status in ("verified", "already_verified"):
                     if not yes_to_all:
-                        resp_queue = queue.Queue()
-
-                        def ask():
-                            class CustomDialog:
-                                def __init__(self, parent):
-                                    self.top = tk.Toplevel(parent)
-                                    self.top.title("Confirm Trash")
-                                    ttk.Label(
-                                        self.top,
-                                        text=f"Trash verified file {item.name}?",
-                                    ).pack(padx=20, pady=10)
-                                    self.result = "No"
-                                    btn_frame = ttk.Frame(self.top)
-                                    btn_frame.pack(pady=10)
-
-                                    def set_res(val):
-                                        self.result = val
-                                        self.top.destroy()
-
-                                    ttk.Button(
-                                        btn_frame,
-                                        text="Yes",
-                                        command=lambda: set_res("Yes"),
-                                    ).pack(side="left", padx=5)
-                                    ttk.Button(
-                                        btn_frame,
-                                        text="Yes to all",
-                                        command=lambda: set_res("Yes to all"),
-                                    ).pack(side="left", padx=5)
-                                    ttk.Button(
-                                        btn_frame,
-                                        text="No",
-                                        command=lambda: set_res("No"),
-                                    ).pack(side="left", padx=5)
-                                    ttk.Button(
-                                        btn_frame,
-                                        text="No to all",
-                                        command=lambda: set_res("No to all"),
-                                    ).pack(side="left", padx=5)
-                                    self.top.wait_window()
-
-                            d = CustomDialog(self.root)
-                            resp_queue.put(d.result)
-
-                        self.root.after_idle(ask)
-                        ans = resp_queue.get()
+                        ans = self._ask_user(
+                            "Confirm Trash",
+                            f"Trash verified file {item.name}?",
+                            ["Yes", "Yes to all", "No", "No to all"],
+                        )
 
                         if ans == "No to all":
                             break
