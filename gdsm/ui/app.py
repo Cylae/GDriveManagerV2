@@ -13,6 +13,7 @@ from ..services.oauth import GoogleOAuth
 from ..services.transfer import TransferEngine
 from ..storage.settings import JsonStore
 from ..utils.paths import safe_target
+from ..utils.security import sanitize_csv_field
 from .view_models import SessionStats
 
 
@@ -434,14 +435,14 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "Path", "Mime type", "Size", "Modified", "Owner"])
             w.writerows(
-                tuple(self._sanitize_csv_value(v) for v in (
-                    x.name,
-                    getattr(x, "drive_path", ""),
-                    x.mime_type,
+                (
+                    sanitize_csv_field(x.name),
+                    sanitize_csv_field(getattr(x, "drive_path", "")),
+                    sanitize_csv_field(x.mime_type),
                     x.size,
-                    x.modified,
-                    x.owner,
-                ))
+                    sanitize_csv_field(x.modified),
+                    sanitize_csv_field(x.owner),
+                )
                 for x in self.items
             )
         self.status.set("CSV exported: " + path)
@@ -456,8 +457,7 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "State", "Detail"])
             for child in self.queue.get_children():
-                row = self.queue.item(child)["values"]
-                w.writerow([self._sanitize_csv_value(v) for v in row])
+                w.writerow([sanitize_csv_field(v) for v in self.queue.item(child)["values"]])
         self.status.set("Queue CSV exported: " + path)
 
     def export_session_report(self):

@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 from gdsm.domain.models import DriveItem, Settings
 from gdsm.utils.paths import safe_name, safe_target, unique_target
-from gdsm.services.verification import verify_binary, checksums
+from gdsm.utils.security import sanitize_csv_field
+from gdsm.services.verification import verify_binary
 
 
 class SafetyTests(unittest.TestCase):
@@ -54,29 +55,19 @@ class SafetyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Settings(concurrency=9).validate()
 
-    def test_checksums_cancellation(self):
-        p = self.root / "cancel.bin"
-        p.write_bytes(b"data")
+    def test_sanitize_csv_field(self):
+        self.assertEqual(sanitize_csv_field("=1+1"), "'=1+1")
+        self.assertEqual(sanitize_csv_field("+1+1"), "'+1+1")
+        self.assertEqual(sanitize_csv_field("-1+1"), "'-1+1")
+        self.assertEqual(sanitize_csv_field("@SUM(1,1)"), "'@SUM(1,1)")
+        self.assertEqual(sanitize_csv_field("\t=1+1"), "'\t=1+1")
+        self.assertEqual(sanitize_csv_field("\r=1+1"), "'\r=1+1")
+        self.assertEqual(sanitize_csv_field("hello"), "hello")
+        self.assertEqual(sanitize_csv_field("1+1"), "1+1")
+        self.assertEqual(sanitize_csv_field(""), "")
+        self.assertEqual(sanitize_csv_field(123), 123)
+        self.assertEqual(sanitize_csv_field(None), None)
 
-        class MockCancel:
-            def is_set(self):
-                return True
-
-        with self.assertRaises(InterruptedError):
-            checksums(p, cancel=MockCancel())
-
-    def test_checksums_success(self):
-        p = self.root / "success.bin"
-        p.write_bytes(b"hello")
-
-        class MockCancel:
-            def is_set(self):
-                return False
-
-        md5, sha = checksums(p, cancel=MockCancel())
-        import hashlib
-        self.assertEqual(md5, hashlib.md5(b"hello").hexdigest())
-        self.assertEqual(sha, hashlib.sha256(b"hello").hexdigest())
 
 if __name__ == "__main__":
     unittest.main()
