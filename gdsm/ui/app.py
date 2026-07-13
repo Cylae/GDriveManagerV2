@@ -232,6 +232,20 @@ class App:
             target=self._download_worker, args=(chosen,), daemon=True
         ).start()
 
+    def _make_progress_callback(self, jobs):
+        total = sum(i.size for i, _ in jobs)
+        state = [0]
+
+        def progress(item, current, size, speed, chunk=0):
+            self.events.put(
+                ("progress", (item.name, state[0] + current, total, speed, chunk))
+            )
+
+        def add_done(amount):
+            state[0] += amount
+
+        return progress, add_done
+
     def _download_worker(self, chosen):
         try:
             api = self.api()
@@ -248,16 +262,10 @@ class App:
                 status, path, detail = export_workspace_file(api, item, target)
                 self.events.put(("queue", (item.name, status, detail)))
 
-            total = sum(i.size for i, _ in jobs)
-            done = 0
-
-            def progress(item, current, size, speed, chunk=0):
-                self.events.put(
-                    ("progress", (item.name, done + current, total, speed, chunk))
-                )
+            progress, add_done = self._make_progress_callback(jobs)
 
             for item, result in engine.download_many(jobs, self.cancel, progress):
-                done += (
+                add_done(
                     item.size if result[0] in ("verified", "already_verified") else 0
                 )
                 self.events.put(("queue", (item.name, result[0], result[2])))
@@ -325,18 +333,12 @@ class App:
                     continue
                 jobs.append((i, safe_target(self.dest.get(), i.name)))
 
-            total = sum(i.size for i, _ in jobs)
-            done = 0
-
-            def progress(item, current, size, speed, chunk=0):
-                self.events.put(
-                    ("progress", (item.name, done + current, total, speed, chunk))
-                )
+            progress, add_done = self._make_progress_callback(jobs)
 
             yes_to_all = False
             for item, result in engine.download_many(jobs, self.cancel, progress):
                 status, path, detail = result
-                done += item.size if status in ("verified", "already_verified") else 0
+                add_done(item.size if status in ("verified", "already_verified") else 0)
 
                 if status in ("verified", "already_verified"):
                     if not yes_to_all:
