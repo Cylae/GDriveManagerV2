@@ -6,22 +6,23 @@ import io
 from functools import wraps
 
 
+def _safe_sleep(delay, cancel):
+    steps = int(delay * 10)
+    for _ in range(steps):
+        if cancel and cancel.is_set():
+            raise InterruptedError("cancelled")
+        time.sleep(0.1)
+    time.sleep(delay - (steps * 0.1))
+    if cancel and cancel.is_set():
+        raise InterruptedError("cancelled")
+
+
 def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float = 60.0):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             retries = 0
             cancel = kwargs.get("cancel", None)
-
-            def safe_sleep(delay):
-                steps = int(delay * 10)
-                for _ in range(steps):
-                    if cancel and cancel.is_set():
-                        raise InterruptedError("cancelled")
-                    time.sleep(0.1)
-                time.sleep(delay - (steps * 0.1))
-                if cancel and cancel.is_set():
-                    raise InterruptedError("cancelled")
 
             while True:
                 try:
@@ -54,7 +55,7 @@ def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float =
                             base_delay * (2**retries) + random.uniform(0, 1), max_delay
                         )
 
-                    safe_sleep(delay)
+                    _safe_sleep(delay, cancel)
                     retries += 1
                 except (urllib.error.URLError, TimeoutError, ConnectionError):
                     if retries >= max_retries:
@@ -62,7 +63,7 @@ def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float =
                     delay = min(
                         base_delay * (2**retries) + random.uniform(0, 1), max_delay
                     )
-                    safe_sleep(delay)
+                    _safe_sleep(delay, cancel)
                     retries += 1
 
         return wrapper

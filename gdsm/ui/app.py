@@ -1,4 +1,5 @@
 import csv
+import heapq
 import queue
 import threading
 import tkinter as tk
@@ -212,7 +213,7 @@ class App:
             )
 
         self.top_items_tree.delete(*self.top_items_tree.get_children())
-        sorted_items = sorted(self.items, key=lambda x: x.size, reverse=True)[:10]
+        sorted_items = heapq.nlargest(10, self.items, key=lambda x: x.size)
         for idx, it in enumerate(sorted_items):
             self.top_items_tree.insert("", "end", iid=str(idx), values=(it.name, it.size))
 
@@ -231,6 +232,20 @@ class App:
             target=self._download_worker, args=(chosen,), daemon=True
         ).start()
 
+    def _make_progress_callback(self, jobs):
+        total = sum(i.size for i, _ in jobs)
+        state = [0]
+
+        def progress(item, current, size, speed, chunk=0):
+            self.events.put(
+                ("progress", (item.name, state[0] + current, total, speed, chunk))
+            )
+
+        def add_done(amount):
+            state[0] += amount
+
+        return progress, add_done
+
     def _download_worker(self, chosen):
         try:
             api = self.api()
@@ -247,16 +262,10 @@ class App:
                 status, path, detail = export_workspace_file(api, item, target)
                 self.events.put(("queue", (item.name, status, detail)))
 
-            total = sum(i.size for i, _ in jobs)
-            done = 0
-
-            def progress(item, current, size, speed, chunk=0):
-                self.events.put(
-                    ("progress", (item.name, done + current, total, speed, chunk))
-                )
+            progress, add_done = self._make_progress_callback(jobs)
 
             for item, result in engine.download_many(jobs, self.cancel, progress):
-                done += (
+                add_done(
                     item.size if result[0] in ("verified", "already_verified") else 0
                 )
                 self.events.put(("queue", (item.name, result[0], result[2])))
@@ -324,18 +333,12 @@ class App:
                     continue
                 jobs.append((i, safe_target(self.dest.get(), i.name)))
 
-            total = sum(i.size for i, _ in jobs)
-            done = 0
-
-            def progress(item, current, size, speed, chunk=0):
-                self.events.put(
-                    ("progress", (item.name, done + current, total, speed, chunk))
-                )
+            progress, add_done = self._make_progress_callback(jobs)
 
             yes_to_all = False
             for item, result in engine.download_many(jobs, self.cancel, progress):
                 status, path, detail = result
-                done += item.size if status in ("verified", "already_verified") else 0
+                add_done(item.size if status in ("verified", "already_verified") else 0)
 
                 if status in ("verified", "already_verified"):
                     if not yes_to_all:
@@ -415,6 +418,14 @@ class App:
         except Exception as e:
             self.events.put(("error", str(e)))
 
+    def _sanitize_csv_value(self, value):
+        if value is None:
+            return ""
+        s = str(value)
+        if s.startswith(("=", "+", "-", "@")):
+            return "'" + s
+        return s
+
     def export_csv(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".csv", filetypes=[("CSV", "*.csv")]
@@ -425,14 +436,14 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "Path", "Mime type", "Size", "Modified", "Owner"])
             w.writerows(
-                (
+                tuple(self._sanitize_csv_value(v) for v in (
                     x.name,
                     getattr(x, "drive_path", ""),
                     x.mime_type,
                     x.size,
                     x.modified,
                     x.owner,
-                )
+                ))
                 for x in self.items
             )
         self.status.set("CSV exported: " + path)
@@ -447,7 +458,8 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "State", "Detail"])
             for child in self.queue.get_children():
-                w.writerow(self.queue.item(child)["values"])
+                row = self.queue.item(child)["values"]
+                w.writerow([self._sanitize_csv_value(v) for v in row])
         self.status.set("Queue CSV exported: " + path)
 
     def export_session_report(self):
