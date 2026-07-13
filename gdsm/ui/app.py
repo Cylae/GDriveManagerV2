@@ -1,4 +1,5 @@
 import csv
+import heapq
 import queue
 import threading
 import tkinter as tk
@@ -212,7 +213,7 @@ class App:
             )
 
         self.top_items_tree.delete(*self.top_items_tree.get_children())
-        sorted_items = sorted(self.items, key=lambda x: x.size, reverse=True)[:10]
+        sorted_items = heapq.nlargest(10, self.items, key=lambda x: x.size)
         for idx, it in enumerate(sorted_items):
             self.top_items_tree.insert("", "end", iid=str(idx), values=(it.name, it.size))
 
