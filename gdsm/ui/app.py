@@ -415,6 +415,14 @@ class App:
         except Exception as e:
             self.events.put(("error", str(e)))
 
+    def _sanitize_csv_value(self, value):
+        if value is None:
+            return ""
+        s = str(value)
+        if s.startswith(("=", "+", "-", "@")):
+            return "'" + s
+        return s
+
     def export_csv(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".csv", filetypes=[("CSV", "*.csv")]
@@ -425,14 +433,14 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "Path", "Mime type", "Size", "Modified", "Owner"])
             w.writerows(
-                (
+                tuple(self._sanitize_csv_value(v) for v in (
                     x.name,
                     getattr(x, "drive_path", ""),
                     x.mime_type,
                     x.size,
                     x.modified,
                     x.owner,
-                )
+                ))
                 for x in self.items
             )
         self.status.set("CSV exported: " + path)
@@ -447,7 +455,8 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "State", "Detail"])
             for child in self.queue.get_children():
-                w.writerow(self.queue.item(child)["values"])
+                row = self.queue.item(child)["values"]
+                w.writerow([self._sanitize_csv_value(v) for v in row])
         self.status.set("Queue CSV exported: " + path)
 
     def export_session_report(self):
