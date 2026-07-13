@@ -190,12 +190,10 @@ class App:
         q = self.search.get().lower()
         self.tree.delete(*self.tree.get_children())
         for i, item in enumerate(self.items):
-            if (
-                q
-                and q
-                not in (
-                    item.name + " " + item.mime_type + " " + item.drive_path
-                ).lower()
+            if q and (
+                q not in item.name.lower()
+                and q not in item.mime_type.lower()
+                and q not in item.drive_path.lower()
             ):
                 continue
             self.tree.insert(
