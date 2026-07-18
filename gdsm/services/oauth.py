@@ -46,23 +46,27 @@ class GoogleOAuth:
         self.on_refresh = on_refresh
         self.access = ""
         self.expiry = 0
+        self._lock = threading.Lock()
 
     def token(self) -> str:
         if self.access and time.time() < self.expiry:
             return self.access
-        refresh_token = load_secret("refresh_token")
-        if refresh_token:
-            try:
-                return self._exchange(
-                    {
-                        "client_id": self.s.client_id,
-                        "refresh_token": refresh_token,
-                        "grant_type": "refresh_token",
-                    }
-                )
-            except Exception:
-                pass
-        return self._interactive()
+        with self._lock:
+            if self.access and time.time() < self.expiry:
+                return self.access
+            refresh_token = load_secret("refresh_token")
+            if refresh_token:
+                try:
+                    return self._exchange(
+                        {
+                            "client_id": self.s.client_id,
+                            "refresh_token": refresh_token,
+                            "grant_type": "refresh_token",
+                        }
+                    )
+                except Exception:
+                    pass
+            return self._interactive()
 
     def _exchange(self, data):
         req = urllib.request.Request(
