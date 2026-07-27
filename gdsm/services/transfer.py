@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import os
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
 from ..domain.models import DriveItem, Settings
-from ..utils.paths import ensure_space, unique_target
 from ..services.verification import verify_binary
+from ..utils.paths import ensure_space, unique_target
 
 
 class TransferEngine:

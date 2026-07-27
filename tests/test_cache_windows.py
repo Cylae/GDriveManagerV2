@@ -1,8 +1,10 @@
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
+
 from gdsm.domain.models import DriveItem
 from gdsm.services.cache import InventoryCache
+
 
 class WindowsCacheTests(unittest.TestCase):
     def setUp(self):
