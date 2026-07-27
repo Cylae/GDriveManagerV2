@@ -1,10 +1,58 @@
+import threading
+import time
 import unittest
 from unittest.mock import patch
+
 from gdsm.domain.models import Settings
 from gdsm.services.oauth import GoogleOAuth
 
 
 class OAuthTests(unittest.TestCase):
+    @patch("gdsm.services.oauth.load_secret")
+    def test_concurrent_token_refresh(self, mock_load_secret):
+        # Simulate loading a valid refresh token
+        mock_load_secret.return_value = "fake_refresh_token"
+
+        settings = Settings(client_id="test_client_id")
+
+        def mock_on_refresh(s):
+            pass
+
+        oauth = GoogleOAuth(settings, mock_on_refresh)
+
+        # We will track how many times _exchange is called
+        exchange_calls = 0
+
+        def mock_exchange(data):
+            nonlocal exchange_calls
+            exchange_calls += 1
+            # Simulate network delay to ensure threads overlap
+            time.sleep(0.1)
+            # Explicitly modify oauth.access and oauth.expiry to simulate real method
+            oauth.access = "new_access_token"
+            oauth.expiry = time.time() + 3600
+            return oauth.access
+
+        # Patch the instance method directly
+        oauth._exchange = mock_exchange
+
+        def worker():
+            token = oauth.token()
+            self.assertEqual(token, "new_access_token")
+
+        threads = []
+        # Spawn 5 concurrent threads
+        for _ in range(5):
+            t = threading.Thread(target=worker)
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        # The lock and double-checked locking should ensure _exchange is called only once
+        self.assertEqual(exchange_calls, 1)
+
     @patch("gdsm.services.oauth.delete_secret")
     def test_logout_resets_state_and_deletes_secret(self, mock_delete_secret):
         settings = Settings(client_id="test_client_id")

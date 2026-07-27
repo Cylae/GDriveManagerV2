@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 
 def save_secret(key: str, value: str) -> None:
@@ -9,7 +8,7 @@ def save_secret(key: str, value: str) -> None:
         _save_keyring(key, value)
 
 
-def load_secret(key: str) -> Optional[str]:
+def load_secret(key: str) -> str | None:
     if sys.platform == "win32":
         return _load_win32(key)
     else:
@@ -30,8 +29,8 @@ def _save_keyring(key: str, value: str) -> None:
         keyring.set_password("GDriveSpaceManager", key, value)
     except Exception:
         # Document explicit fallback per instructions if keyring fails or is not available
-        import os
         import base64
+        import os
 
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)
@@ -43,13 +42,13 @@ def _save_keyring(key: str, value: str) -> None:
             f.write(base64.b64encode(value.encode()).decode())
 
 
-def _load_keyring(key: str) -> Optional[str]:
+def _load_keyring(key: str) -> str | None:
     try:
         import keyring  # type: ignore
         return keyring.get_password("GDriveSpaceManager", key)
     except Exception:
-        import os
         import base64
+        import os
 
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)
@@ -89,8 +88,8 @@ def _save_win32(key: str, value: str) -> None:
             ("pbData", ctypes.POINTER(ctypes.c_char)),
         ]
 
-    CryptProtectData = getattr(ctypes, "windll").crypt32.CryptProtectData
-    LocalFree = getattr(ctypes, "windll").kernel32.LocalFree
+    CryptProtectData = ctypes.windll.crypt32.CryptProtectData  # type: ignore[attr-defined]
+    LocalFree = ctypes.windll.kernel32.LocalFree  # type: ignore[attr-defined]
 
     data_in = DATA_BLOB()
     encoded = value.encode("utf-8")
@@ -116,7 +115,7 @@ def _save_win32(key: str, value: str) -> None:
             LocalFree(data_out.pbData)
 
 
-def _load_win32(key: str) -> Optional[str]:
+def _load_win32(key: str) -> str | None:
     import os
 
     path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
@@ -132,8 +131,8 @@ def _load_win32(key: str) -> Optional[str]:
             ("pbData", ctypes.POINTER(ctypes.c_char)),
         ]
 
-    CryptUnprotectData = getattr(ctypes, "windll").crypt32.CryptUnprotectData
-    LocalFree = getattr(ctypes, "windll").kernel32.LocalFree
+    CryptUnprotectData = ctypes.windll.crypt32.CryptUnprotectData  # type: ignore[attr-defined]
+    LocalFree = ctypes.windll.kernel32.LocalFree  # type: ignore[attr-defined]
 
     with open(path, "rb") as f:
         encrypted_data = f.read()
