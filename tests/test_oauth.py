@@ -30,5 +30,59 @@ class OAuthTests(unittest.TestCase):
         # Verify secret deletion
         mock_delete_secret.assert_called_once_with("refresh_token")
 
+    @patch("gdsm.services.oauth.load_secret")
+    def test_token_thread_safe_double_check(self, mock_load_secret):
+        mock_load_secret.return_value = "dummy_refresh_token"
+
+        settings = Settings(client_id="test_client_id")
+
+        def mock_on_refresh(s):
+            pass
+
+        oauth = GoogleOAuth(settings, mock_on_refresh)
+
+        # We need a latch to pause the first thread during exchange
+        import threading
+
+        exchange_called = 0
+        latch = threading.Event()
+
+        # Mock _exchange on the instance to simulate network delay
+        # and side effects on oauth state
+        def side_effect_exchange(*args, **kwargs):
+            nonlocal exchange_called
+            exchange_called += 1
+            latch.wait() # Block here so other threads can catch up
+            oauth.access = "new_access_token"
+            oauth.expiry = 9999999999
+            return "new_access_token"
+
+        with patch.object(oauth, '_exchange', side_effect=side_effect_exchange):
+            results = []
+
+            def thread_worker():
+                results.append(oauth.token())
+
+            threads = [threading.Thread(target=thread_worker) for _ in range(5)]
+
+            for t in threads:
+                t.start()
+
+            # Allow threads to start and the first one to hit the latch
+            import time
+            time.sleep(0.1)
+
+            # Release the latch
+            latch.set()
+
+            for t in threads:
+                t.join()
+
+            # Exactly 1 exchange should have happened
+            self.assertEqual(exchange_called, 1)
+            # All threads should get the same token
+            self.assertEqual(len(results), 5)
+            self.assertTrue(all(r == "new_access_token" for r in results))
+
 if __name__ == "__main__":
     unittest.main()
