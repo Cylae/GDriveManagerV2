@@ -1,8 +1,9 @@
 from __future__ import annotations
-import time
-import random
-import urllib.error
+
 import io
+import random
+import time
+import urllib.error
 from functools import wraps
 
 
