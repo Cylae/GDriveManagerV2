@@ -30,5 +30,42 @@ class OAuthTests(unittest.TestCase):
         # Verify secret deletion
         mock_delete_secret.assert_called_once_with("refresh_token")
 
+    @patch("gdsm.services.oauth.GoogleOAuth._exchange")
+    @patch("gdsm.services.oauth.load_secret")
+    def test_token_thread_safety(self, mock_load_secret, mock_exchange):
+        import threading
+        import time
+        settings = Settings(client_id="test_client_id")
+        oauth = GoogleOAuth(settings, lambda s: None)
+
+        mock_load_secret.return_value = "fake_refresh_token"
+
+        def slow_exchange(data):
+            time.sleep(0.1)
+            # The real _exchange sets access and expiry
+            with oauth._lock:
+                oauth.access = "new_access_token"
+                oauth.expiry = time.time() + 3600
+            return oauth.access
+
+        mock_exchange.side_effect = slow_exchange
+
+        results = []
+        def worker():
+            results.append(oauth.token())
+
+        threads = [threading.Thread(target=worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Verify that all threads returned the correct token
+        self.assertEqual(len(results), 5)
+        self.assertTrue(all(r == "new_access_token" for r in results))
+
+        # The key check: _exchange should only be called once, despite 5 concurrent requests
+        mock_exchange.assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()
