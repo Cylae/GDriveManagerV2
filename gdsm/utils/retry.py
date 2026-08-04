@@ -1,8 +1,11 @@
 from __future__ import annotations
-import time
-import random
-import urllib.error
+
+import email.utils
 import io
+import random
+import time
+import urllib.error
+from datetime import datetime, timezone
 from functools import wraps
 
 
@@ -48,9 +51,23 @@ def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float =
                         raise
 
                     retry_after = e.headers.get("Retry-After")
-                    if retry_after and retry_after.isdigit():
-                        delay = min(int(retry_after), max_delay)
-                    else:
+                    delay = None
+                    if retry_after:
+                        if retry_after.isdigit():
+                            delay = min(int(retry_after), max_delay)
+                        else:
+                            try:
+                                dt = email.utils.parsedate_to_datetime(retry_after)
+                                # parsedate_to_datetime returns a naive datetime if timezone is not specified
+                                # however RFC 2822 HTTP dates should have timezone GMT/UTC.
+                                if dt.tzinfo is None:
+                                    dt = dt.replace(tzinfo=timezone.utc)
+                                delta = (dt - datetime.now(timezone.utc)).total_seconds()
+                                delay = min(max(0.0, delta), max_delay)
+                            except (TypeError, ValueError):
+                                pass
+
+                    if delay is None:
                         delay = min(
                             base_delay * (2**retries) + random.uniform(0, 1), max_delay
                         )
