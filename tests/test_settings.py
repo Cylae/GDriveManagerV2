@@ -55,5 +55,21 @@ class TestJsonStore(unittest.TestCase):
         temp_files = list(Path(self.temp_dir.name).glob(".config-*"))
         self.assertEqual(len(temp_files), 0, "Temporary file was not cleaned up!")
 
+    @patch("os.open")
+    def test_save_uses_o_excl(self, mock_os_open):
+        """Test that saving settings uses O_EXCL for atomic replacement."""
+        mock_os_open.return_value = 999
+        with patch("builtins.open"), patch("os.fsync"), patch("os.replace"):
+            settings = Settings()
+            self.store.save(settings)
+
+            mock_os_open.assert_called_once()
+            args = mock_os_open.call_args.args
+            flags = args[1]
+            import os
+            self.assertTrue(bool(flags & os.O_CREAT))
+            self.assertTrue(bool(flags & os.O_EXCL))
+            self.assertTrue(bool(flags & os.O_WRONLY))
+
 if __name__ == "__main__":
     unittest.main()

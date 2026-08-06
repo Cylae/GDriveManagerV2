@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import unittest
 import tempfile
 import time
@@ -47,6 +48,22 @@ class CacheTests(unittest.TestCase):
         self.cache_file.write_text("{bad json")
         self.assertIsNone(self.cache.load())
 
+
+    @patch("os.open")
+    def test_save_uses_o_excl(self, mock_os_open):
+        mock_os_open.return_value = 999
+        with patch("builtins.open"), patch("os.fsync"), patch("os.replace"):
+            item = DriveItem(
+                "1", "f", "text", 0, None, "", "", (), False, False, False, False
+            )
+            self.cache.save([item])
+
+            mock_os_open.assert_called_once()
+            args = mock_os_open.call_args.args
+            flags = args[1]
+            self.assertTrue(bool(flags & os.O_CREAT))
+            self.assertTrue(bool(flags & os.O_EXCL))
+            self.assertTrue(bool(flags & os.O_WRONLY))
 
 if __name__ == "__main__":
     unittest.main()

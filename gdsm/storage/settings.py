@@ -30,7 +30,7 @@ class JsonStore:
         settings.validate()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(f".config-{uuid.uuid4().hex}")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
             with open(fd, "w", encoding="utf-8") as f:
                 json.dump(settings.to_json(), f, indent=2)
