@@ -37,10 +37,19 @@ def _save_keyring(key: str, value: str) -> None:
         os.makedirs(d, exist_ok=True)
         fallback_path = os.path.join(d, f".{key}.secret")
 
+        import uuid
+        tmp = os.path.join(d, f".{key}.secret.{uuid.uuid4().hex}")
         # Open the file securely, preventing any window of time where permissions are weak
-        fd = os.open(fallback_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with open(fd, "w", encoding="utf-8") as f:
-            f.write(base64.b64encode(value.encode()).decode())
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with open(fd, "w", encoding="utf-8") as f:
+                f.write(base64.b64encode(value.encode()).decode())
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, fallback_path)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
 
 def _load_keyring(key: str) -> Optional[str]:
@@ -107,11 +116,20 @@ def _save_win32(key: str, value: str) -> None:
         try:
             encrypted_data = ctypes.string_at(data_out.pbData, data_out.cbData)
             import os
+            import uuid
 
             path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with open(fd, "wb") as f:
-                f.write(encrypted_data)
+            tmp = path + f".{uuid.uuid4().hex}"
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                with open(fd, "wb") as f:
+                    f.write(encrypted_data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, path)
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
         finally:
             LocalFree(data_out.pbData)
 
