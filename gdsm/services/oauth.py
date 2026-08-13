@@ -46,23 +46,33 @@ class GoogleOAuth:
         self.on_refresh = on_refresh
         self.access = ""
         self.expiry = 0
+        self._lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
 
     def token(self) -> str:
-        if self.access and time.time() < self.expiry:
-            return self.access
-        refresh_token = load_secret("refresh_token")
-        if refresh_token:
-            try:
-                return self._exchange(
-                    {
-                        "client_id": self.s.client_id,
-                        "refresh_token": refresh_token,
-                        "grant_type": "refresh_token",
-                    }
-                )
-            except Exception:
-                pass
-        return self._interactive()
+        with self._lock:
+            if self.access and time.time() < self.expiry:
+                return self.access
+
+        with self._refresh_lock:
+            # Double check
+            with self._lock:
+                if self.access and time.time() < self.expiry:
+                    return self.access
+
+            refresh_token = load_secret("refresh_token")
+            if refresh_token:
+                try:
+                    return self._exchange(
+                        {
+                            "client_id": self.s.client_id,
+                            "refresh_token": refresh_token,
+                            "grant_type": "refresh_token",
+                        }
+                    )
+                except Exception:
+                    pass
+            return self._interactive()
 
     def _exchange(self, data):
         req = urllib.request.Request(
@@ -72,12 +82,17 @@ class GoogleOAuth:
         )
         with urllib.request.urlopen(req, timeout=30) as res:
             payload = json.load(res)
-        self.access = payload["access_token"]
-        self.expiry = time.time() + max(60, int(payload.get("expires_in", 3600)) - 60)
+
+        with self._lock:
+            self.access = payload["access_token"]
+            self.expiry = time.time() + max(60, int(payload.get("expires_in", 3600)) - 60)
+
         if payload.get("refresh_token"):
             save_secret("refresh_token", payload["refresh_token"])
             self.on_refresh(self.s)
-        return self.access
+
+        with self._lock:
+            return self.access
 
     def _interactive(self):
         if not self.s.client_id:
@@ -132,6 +147,7 @@ class GoogleOAuth:
         )
 
     def logout(self) -> None:
-        self.access = ""
-        self.expiry = 0
+        with self._lock:
+            self.access = ""
+            self.expiry = 0
         delete_secret("refresh_token")
