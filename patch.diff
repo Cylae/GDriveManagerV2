@@ -1,0 +1,156 @@
+diff --git a/gdsm/services/oauth.py b/gdsm/services/oauth.py
+index c4fd04c..53fb7c6 100644
+--- a/gdsm/services/oauth.py
++++ b/gdsm/services/oauth.py
+@@ -46,23 +46,33 @@ class GoogleOAuth:
+         self.on_refresh = on_refresh
+         self.access = ""
+         self.expiry = 0
++        self._lock = threading.Lock()
++        self._refresh_lock = threading.Lock()
+
+     def token(self) -> str:
+-        if self.access and time.time() < self.expiry:
+-            return self.access
+-        refresh_token = load_secret("refresh_token")
+-        if refresh_token:
+-            try:
+-                return self._exchange(
+-                    {
+-                        "client_id": self.s.client_id,
+-                        "refresh_token": refresh_token,
+-                        "grant_type": "refresh_token",
+-                    }
+-                )
+-            except Exception:
+-                pass
+-        return self._interactive()
++        with self._lock:
++            if self.access and time.time() < self.expiry:
++                return self.access
++
++        with self._refresh_lock:
++            # Double check
++            with self._lock:
++                if self.access and time.time() < self.expiry:
++                    return self.access
++
++            refresh_token = load_secret("refresh_token")
++            if refresh_token:
++                try:
++                    return self._exchange(
++                        {
++                            "client_id": self.s.client_id,
++                            "refresh_token": refresh_token,
++                            "grant_type": "refresh_token",
++                        }
++                    )
++                except Exception:
++                    pass
++            return self._interactive()
+
+     def _exchange(self, data):
+         req = urllib.request.Request(
+@@ -72,12 +82,17 @@ class GoogleOAuth:
+         )
+         with urllib.request.urlopen(req, timeout=30) as res:
+             payload = json.load(res)
+-        self.access = payload["access_token"]
+-        self.expiry = time.time() + max(60, int(payload.get("expires_in", 3600)) - 60)
++
++        with self._lock:
++            self.access = payload["access_token"]
++            self.expiry = time.time() + max(60, int(payload.get("expires_in", 3600)) - 60)
++
+         if payload.get("refresh_token"):
+             save_secret("refresh_token", payload["refresh_token"])
+             self.on_refresh(self.s)
+-        return self.access
++
++        with self._lock:
++            return self.access
+
+     def _interactive(self):
+         if not self.s.client_id:
+@@ -132,6 +147,7 @@ class GoogleOAuth:
+         )
+
+     def logout(self) -> None:
+-        self.access = ""
+-        self.expiry = 0
++        with self._lock:
++            self.access = ""
++            self.expiry = 0
+         delete_secret("refresh_token")
+diff --git a/patch.diff b/patch.diff
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_oauth.py b/tests/test_oauth.py
+index 25cfefa..a9be5bd 100644
+--- a/tests/test_oauth.py
++++ b/tests/test_oauth.py
+@@ -5,6 +5,64 @@ from gdsm.services.oauth import GoogleOAuth
+
+
+ class OAuthTests(unittest.TestCase):
++    @patch("gdsm.services.oauth.load_secret")
++    def test_concurrent_token_refresh(self, mock_load_secret):
++        settings = Settings(client_id="test_client_id")
++        def mock_on_refresh(s):
++            pass
++
++        oauth = GoogleOAuth(settings, mock_on_refresh)
++
++        # Simulate an expired token that triggers a refresh
++        oauth.access = "expired_token"
++        oauth.expiry = 0
++
++        # Return a dummy refresh token to trigger _exchange instead of _interactive
++        mock_load_secret.return_value = "dummy_refresh_token"
++
++        with patch.object(oauth, "_exchange") as mock_exchange:
++            # We must simulate what the real _exchange does under lock,
++            # otherwise the second thread will still think it needs to refresh
++            def mock_exchange_side_effect(data):
++                import time
++                # Simulate network delay to encourage race conditions
++                time.sleep(0.05)
++                with oauth._lock:
++                    oauth.access = "new_access_token"
++                    oauth.expiry = time.time() + 3600
++                return oauth.access
++
++            mock_exchange.side_effect = mock_exchange_side_effect
++
++            import threading
++
++            results = []
++            threads = []
++
++            def worker():
++                try:
++                    res = oauth.token()
++                    results.append(res)
++                except Exception as e:
++                    results.append(e)
++
++            # Start multiple threads concurrently
++            for _ in range(5):
++                t = threading.Thread(target=worker)
++                threads.append(t)
++                t.start()
++
++            for t in threads:
++                t.join()
++
++            # Ensure all workers got the new token
++            for res in results:
++                self.assertEqual(res, "new_access_token")
++
++            # Ensure the actual network exchange only happened exactly once
++            mock_exchange.assert_called_once()
++
++
+     @patch("gdsm.services.oauth.delete_secret")
+     def test_logout_resets_state_and_deletes_secret(self, mock_delete_secret):
+         settings = Settings(client_id="test_client_id")
