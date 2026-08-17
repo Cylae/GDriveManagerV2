@@ -1,10 +1,11 @@
 import tempfile
 import unittest
 from pathlib import Path
+
 from gdsm.domain.models import DriveItem, Settings
+from gdsm.services.verification import verify_binary
 from gdsm.utils.paths import safe_name, safe_target, unique_target
 from gdsm.utils.security import sanitize_csv_field
-from gdsm.services.verification import verify_binary
 
 
 class SafetyTests(unittest.TestCase):

@@ -1,8 +1,9 @@
 import json
 import os
-import uuid
 import time
+import uuid
 from pathlib import Path
+
 from ..domain.models import DriveItem
 
 CACHE_VERSION = 1
