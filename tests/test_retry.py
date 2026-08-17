@@ -1,6 +1,7 @@
 import unittest
 import urllib.error
 from unittest.mock import MagicMock
+
 from gdsm.utils.retry import with_retry
 
 
