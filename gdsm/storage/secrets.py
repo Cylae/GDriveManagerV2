@@ -32,15 +32,22 @@ def _save_keyring(key: str, value: str) -> None:
         # Document explicit fallback per instructions if keyring fails or is not available
         import os
         import base64
+        import tempfile
 
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)
         fallback_path = os.path.join(d, f".{key}.secret")
 
         # Open the file securely, preventing any window of time where permissions are weak
-        fd = os.open(fallback_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with open(fd, "w", encoding="utf-8") as f:
-            f.write(base64.b64encode(value.encode()).decode())
+        fd, tmp_path = tempfile.mkstemp(prefix=f".{key}.secret-", dir=d, text=False)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                f.write(base64.b64encode(value.encode()).decode())
+            os.replace(tmp_path, fallback_path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
 
 def _load_keyring(key: str) -> Optional[str]:
@@ -107,11 +114,21 @@ def _save_win32(key: str, value: str) -> None:
         try:
             encrypted_data = ctypes.string_at(data_out.pbData, data_out.cbData)
             import os
+            import tempfile
 
-            path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with open(fd, "wb") as f:
-                f.write(encrypted_data)
+            d = os.path.expanduser("~/.gdrive-space-manager")
+            os.makedirs(d, exist_ok=True)
+            path = os.path.join(d, f".{key}.dpapi")
+
+            fd, tmp_path = tempfile.mkstemp(prefix=f".{key}.dpapi-", dir=d, text=False)
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(encrypted_data)
+                os.replace(tmp_path, path)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
         finally:
             LocalFree(data_out.pbData)
 
