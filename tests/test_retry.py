@@ -1,5 +1,7 @@
 import unittest
 import urllib.error
+import email.utils
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from gdsm.utils.retry import with_retry
 
@@ -34,15 +36,15 @@ class RetryTests(unittest.TestCase):
         )
         func.side_effect = [err, "success"]
 
-        import time
+        from unittest.mock import patch
 
-        start = time.time()
-        decorated = with_retry(max_retries=3)(func)
-        decorated()
-        end = time.time()
+        with patch("gdsm.utils.retry.time.sleep") as mock_sleep:
+            decorated = with_retry(max_retries=3)(func)
+            decorated()
 
-        self.assertTrue(end - start >= 1.0)
-        self.assertEqual(func.call_count, 2)
+            self.assertEqual(func.call_count, 2)
+            # _safe_sleep does delay - (steps * 0.1) as final sleep
+            self.assertTrue(mock_sleep.call_count >= 10)
 
     def test_retry_on_403_quota(self):
         func = MagicMock()
@@ -79,6 +81,42 @@ class RetryTests(unittest.TestCase):
             decorated()
 
         self.assertEqual(func.call_count, 1)
+
+    def test_retry_after_http_date(self):
+        func = MagicMock()
+
+        # Create a future date for the Retry-After header (e.g., 3 seconds in the future)
+        future_date = datetime.now(timezone.utc) + timedelta(seconds=3)
+        http_date = email.utils.format_datetime(future_date, usegmt=True)
+
+        err = urllib.error.HTTPError(
+            "", 429, "Too Many Requests", {"Retry-After": http_date}, None
+        )
+        func.side_effect = [err, "success"]
+
+        from unittest.mock import patch
+
+        with patch("gdsm.utils.retry.time.sleep") as mock_sleep:
+            decorated = with_retry(max_retries=3)(func)
+            decorated()
+
+            self.assertEqual(func.call_count, 2)
+            # _safe_sleep sleeps in chunks of 0.1. A >2.0s sleep will hit many chunks.
+            self.assertTrue(mock_sleep.call_count >= 20)
+
+    def test_retry_after_invalid_date(self):
+        func = MagicMock()
+        err = urllib.error.HTTPError(
+            "", 429, "Too Many Requests", {"Retry-After": "xyz"}, None
+        )
+        func.side_effect = [err, "success"]
+
+        decorated = with_retry(max_retries=3, base_delay=0.01)(func)
+        res = decorated()
+
+        # It should fall back to standard backoff and succeed on the 2nd attempt
+        self.assertEqual(res, "success")
+        self.assertEqual(func.call_count, 2)
 
 
 if __name__ == "__main__":
