@@ -1,4 +1,6 @@
 from __future__ import annotations
+import datetime
+import email.utils
 import time
 import random
 import urllib.error
@@ -48,9 +50,21 @@ def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float =
                         raise
 
                     retry_after = e.headers.get("Retry-After")
-                    if retry_after and retry_after.isdigit():
-                        delay = min(int(retry_after), max_delay)
-                    else:
+                    delay = None
+                    if retry_after:
+                        if retry_after.isdigit():
+                            delay = min(int(retry_after), max_delay)
+                        else:
+                            try:
+                                dt = email.utils.parsedate_to_datetime(retry_after)
+                                now = datetime.datetime.now(datetime.timezone.utc)
+                                diff = (dt - now).total_seconds()
+                                if diff > 0:
+                                    delay = min(diff, max_delay)
+                            except (TypeError, ValueError, OverflowError):
+                                pass
+
+                    if delay is None:
                         delay = min(
                             base_delay * (2**retries) + random.uniform(0, 1), max_delay
                         )
