@@ -4,6 +4,8 @@ import random
 import urllib.error
 import io
 from functools import wraps
+from email.utils import parsedate_to_datetime
+from datetime import datetime, timezone
 
 
 def _safe_sleep(delay, cancel):
@@ -50,6 +52,15 @@ def with_retry(max_retries: int = 5, base_delay: float = 1.0, max_delay: float =
                     retry_after = e.headers.get("Retry-After")
                     if retry_after and retry_after.isdigit():
                         delay = min(int(retry_after), max_delay)
+                    elif retry_after:
+                        try:
+                            dt = parsedate_to_datetime(retry_after)
+                            delay = (dt - datetime.now(timezone.utc)).total_seconds()
+                            delay = min(max(0.0, delay), max_delay)
+                        except (TypeError, ValueError, OverflowError):
+                            delay = min(
+                                base_delay * (2**retries) + random.uniform(0, 1), max_delay
+                            )
                     else:
                         delay = min(
                             base_delay * (2**retries) + random.uniform(0, 1), max_delay
