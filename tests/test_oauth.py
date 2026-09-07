@@ -30,5 +30,46 @@ class OAuthTests(unittest.TestCase):
         # Verify secret deletion
         mock_delete_secret.assert_called_once_with("refresh_token")
 
+    @patch("gdsm.services.oauth.load_secret")
+    def test_concurrent_token_refresh(self, mock_load_secret):
+        settings = Settings(client_id="test_client_id")
+
+        def mock_on_refresh(s):
+            pass
+
+        oauth = GoogleOAuth(settings, mock_on_refresh)
+        mock_load_secret.return_value = "fake_refresh_token"
+
+        call_count = 0
+
+        def fake_exchange(data):
+            nonlocal call_count
+            call_count += 1
+            import time
+            time.sleep(0.1) # Simulate slow network call
+            with oauth._lock:
+                oauth.access = f"new_token_{call_count}"
+                oauth.expiry = time.time() + 3600
+            return oauth.access
+
+        with patch.object(oauth, "_exchange", side_effect=fake_exchange):
+            import threading
+            results = []
+
+            def worker():
+                results.append(oauth.token())
+
+            threads = [threading.Thread(target=worker) for _ in range(5)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            # Ensure all workers got the SAME token
+            self.assertEqual(len(results), 5)
+            self.assertTrue(all(r == "new_token_1" for r in results))
+            # Ensure the network request was only made ONCE despite 5 concurrent callers
+            self.assertEqual(call_count, 1)
+
 if __name__ == "__main__":
     unittest.main()
