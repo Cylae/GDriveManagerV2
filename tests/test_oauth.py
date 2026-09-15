@@ -30,5 +30,36 @@ class OAuthTests(unittest.TestCase):
         # Verify secret deletion
         mock_delete_secret.assert_called_once_with("refresh_token")
 
+    @patch("gdsm.services.oauth.load_secret")
+    def test_concurrent_token_refresh(self, mock_load_secret):
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+
+        mock_load_secret.return_value = "dummy_refresh_token"
+        settings = Settings(client_id="test_client_id")
+
+        oauth = GoogleOAuth(settings, lambda s: None)
+
+        exchange_calls = 0
+        def slow_exchange(data):
+            nonlocal exchange_calls
+            exchange_calls += 1
+            time.sleep(0.1) # Simulate network delay
+            with oauth._lock:
+                oauth.access = "new_access_token"
+                oauth.expiry = time.time() + 3600
+            return oauth.access
+
+        with patch.object(oauth, "_exchange", side_effect=slow_exchange) as _mock_exchange:
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [executor.submit(oauth.token) for _ in range(5)]
+                results = [f.result() for f in futures]
+
+            # The slow _exchange should only be called once, because the other threads
+            # should wait on the lock and then realize the token is valid.
+            self.assertEqual(exchange_calls, 1)
+            # All threads should get the same valid token
+            self.assertTrue(all(r == "new_access_token" for r in results))
+
 if __name__ == "__main__":
     unittest.main()
