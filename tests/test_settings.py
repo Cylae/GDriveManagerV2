@@ -1,11 +1,11 @@
-import unittest
-import tempfile
 import json
+import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from gdsm.storage.settings import JsonStore
 from gdsm.domain.models import Settings
+from gdsm.storage.settings import JsonStore
 
 
 class TestJsonStore(unittest.TestCase):
