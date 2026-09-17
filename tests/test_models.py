@@ -1,5 +1,7 @@
 import unittest
+
 from gdsm.domain.models import Settings
+
 
 class TestSettingsValidation(unittest.TestCase):
     def test_invalid_concurrency(self):

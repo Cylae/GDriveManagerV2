@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, asdict
-from typing import Optional
+
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -9,7 +9,7 @@ class DriveItem:
     name: str
     mime_type: str
     size: int
-    md5: Optional[str]
+    md5: str | None
     modified: str
     owner: str
     parents: tuple[str, ...]

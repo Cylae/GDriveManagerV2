@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+
 from ..domain.models import Settings
 from ..storage.settings import JsonStore
 
