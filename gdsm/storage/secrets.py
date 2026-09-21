@@ -30,8 +30,8 @@ def _save_keyring(key: str, value: str) -> None:
         keyring.set_password("GDriveSpaceManager", key, value)
     except Exception:
         # Document explicit fallback per instructions if keyring fails or is not available
-        import os
         import base64
+        import os
 
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)
@@ -48,8 +48,8 @@ def _load_keyring(key: str) -> Optional[str]:
         import keyring  # type: ignore
         return keyring.get_password("GDriveSpaceManager", key)
     except Exception:
-        import os
         import base64
+        import os
 
         d = os.path.expanduser("~/.gdrive-space-manager")
         os.makedirs(d, exist_ok=True)

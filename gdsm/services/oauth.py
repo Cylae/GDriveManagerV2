@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import base64
 import hashlib
 import json
@@ -9,9 +10,10 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, Any
+from typing import Any, Dict
+
 from ..domain.models import Settings
-from ..storage.secrets import load_secret, delete_secret, save_secret
+from ..storage.secrets import delete_secret, load_secret, save_secret
 
 
 class OAuthCallbackServer(ThreadingHTTPServer):
