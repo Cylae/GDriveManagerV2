@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+
 from gdsm.domain.models import Settings
 from gdsm.services.oauth import GoogleOAuth
 

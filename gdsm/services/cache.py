@@ -1,8 +1,9 @@
 import json
 import os
-import uuid
 import time
+import uuid
 from pathlib import Path
+
 from ..domain.models import DriveItem
 
 CACHE_VERSION = 1
@@ -33,7 +34,7 @@ class InventoryCache:
                 d["parents"] = tuple(d.get("parents", []))
                 items.append(DriveItem(**d))
             return items
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
     def save(self, items: list[DriveItem]):

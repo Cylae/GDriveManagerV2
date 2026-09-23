@@ -1,10 +1,11 @@
-import unittest
+import os
 import tempfile
 import time
-import os
+import unittest
 from pathlib import Path
+
 from gdsm.domain.models import DriveItem
-from gdsm.services.cache import InventoryCache, CACHE_VERSION
+from gdsm.services.cache import CACHE_VERSION, InventoryCache
 
 
 class CacheTests(unittest.TestCase):

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import base64
 import hashlib
 import json
@@ -9,15 +10,16 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Dict, Any
+from typing import Any
+
 from ..domain.models import Settings
-from ..storage.secrets import load_secret, delete_secret, save_secret
+from ..storage.secrets import delete_secret, load_secret, save_secret
 
 
 class OAuthCallbackServer(ThreadingHTTPServer):
     def __init__(self, server_address: tuple[str, int], RequestHandlerClass: type[BaseHTTPRequestHandler]):
         super().__init__(server_address, RequestHandlerClass)
-        self.oauth_result: Dict[str, str] = {}
+        self.oauth_result: dict[str, str] = {}
         self.oauth_ready = threading.Event()
 
 
@@ -60,7 +62,7 @@ class GoogleOAuth:
                         "grant_type": "refresh_token",
                     }
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
         return self._interactive()
 
