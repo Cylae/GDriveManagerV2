@@ -1,7 +1,8 @@
 import unittest
+from unittest.mock import MagicMock
+
 from gdsm.domain.models import DriveItem
 from gdsm.services.drive_api import DriveApi
-from unittest.mock import MagicMock
 
 
 class DriveApiTests(unittest.TestCase):
