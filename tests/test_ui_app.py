@@ -1,5 +1,7 @@
 import unittest
+
 from gdsm.ui.app import App
+
 
 class AppTests(unittest.TestCase):
     def test_sanitize_csv_value(self):
