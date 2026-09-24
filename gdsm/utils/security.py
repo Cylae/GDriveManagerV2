@@ -4,7 +4,6 @@ def sanitize_csv_field(value):
     If the value is a string and starts with a dangerous character,
     prepend a single quote.
     """
-    if isinstance(value, str) and value:
-        if value[0] in ("=", "+", "-", "@", "\t", "\r"):
-            return "'" + value
+    if isinstance(value, str) and value and value[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
     return value

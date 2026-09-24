@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import json
 import os
 import uuid
 from pathlib import Path
+
 from ..domain.models import Settings
 from .secrets import save_secret
 

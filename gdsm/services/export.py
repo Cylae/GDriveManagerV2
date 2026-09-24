@@ -1,7 +1,9 @@
 from __future__ import annotations
-import urllib.request
+
 import urllib.error
+import urllib.request
 from pathlib import Path
+
 from ..domain.models import DriveItem
 from .drive_api import DriveApi
 
@@ -61,5 +63,5 @@ def export_workspace_file(
             if "exceeds" in body.lower() or "too large" in body.lower():
                 return "error", str(target), "Export exceeds Google size limit"
         return "error", str(target), f"HTTP Error {e.code}: {e.reason}"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return "error", str(target), str(e)

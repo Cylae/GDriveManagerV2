@@ -114,7 +114,7 @@ class App:
                     lst.sort(key=lambda t: int(t[0]), reverse=reverse)
                 else:
                     lst.sort(reverse=reverse)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 lst.sort(reverse=reverse)
             for index, (val, k) in enumerate(lst):
                 self.tree.move(k, "", index)
@@ -185,7 +185,7 @@ class App:
                 self.events.put(("items", (items, source)))
             else:
                 self.events.put(("status", "Ready. Click Refresh to load from Drive."))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.events.put(("error", str(e)))
 
     def _refresh_worker(self):
@@ -194,7 +194,7 @@ class App:
             if res:
                 items, source = res
                 self.events.put(("items", (items, source)))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.events.put(("error", str(e)))
 
     def render(self):
@@ -268,7 +268,7 @@ class App:
                 jobs.append((i, safe_target(self.dest.get(), i.name)))
 
             for item, target in exports:
-                status, path, detail = export_workspace_file(api, item, target)
+                status, _path, detail = export_workspace_file(api, item, target)
                 self.events.put(("queue", (item.name, status, detail)))
 
             progress, add_done = self._make_progress_callback(jobs)
@@ -279,7 +279,7 @@ class App:
                 )
                 self.events.put(("queue", (item.name, result[0], result[2])))
             self.events.put(("status", "Queue complete"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.events.put(("error", str(e)))
 
     def _ask_user(self, title, message, buttons):
@@ -335,7 +335,7 @@ class App:
             for i in chosen:
                 if i.is_native:
                     target = safe_target(self.dest.get(), i.name)
-                    status, path, detail = export_workspace_file(api, i, target)
+                    status, _path, detail = export_workspace_file(api, i, target)
                     if status == "exported_unverifiable":
                         ans = self._ask_user(
                             "Confirm Trash Workspace Export",
@@ -356,7 +356,7 @@ class App:
 
             yes_to_all = False
             for item, result in engine.download_many(jobs, self.cancel, progress):
-                status, path, detail = result
+                status, _path, detail = result
                 add_done(item.size if status in ("verified", "already_verified") else 0)
 
                 if status in ("verified", "already_verified"):
@@ -393,7 +393,7 @@ class App:
                     )
 
             self.events.put(("status", "Trash operation complete"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.events.put(("error", str(e)))
 
     def _sanitize_csv_value(self, value):
