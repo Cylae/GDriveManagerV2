@@ -1,5 +1,8 @@
+import threading
+import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
 from gdsm.domain.models import Settings
 from gdsm.services.oauth import GoogleOAuth
 
@@ -29,6 +32,90 @@ class OAuthTests(unittest.TestCase):
 
         # Verify secret deletion
         mock_delete_secret.assert_called_once_with("refresh_token")
+
+    @patch("gdsm.services.oauth.load_secret")
+    def test_token_thread_safe_cache_hit(self, mock_load):
+        settings = Settings(client_id="test_client_id")
+        oauth = GoogleOAuth(settings, lambda s: None)
+        oauth.access = "cached_token"
+        oauth.expiry = time.time() + 3600
+
+        results = []
+
+        def worker():
+            results.append(oauth.token())
+
+        threads = [threading.Thread(target=worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(results, ["cached_token"] * 5)
+        mock_load.assert_not_called()
+
+    @patch("gdsm.services.oauth.load_secret")
+    def test_token_thread_safe_refresh(self, mock_load):
+        mock_load.return_value = "refresh_mock"
+        settings = Settings(client_id="test_client_id")
+        oauth = GoogleOAuth(settings, lambda s: None)
+
+        call_count = 0
+
+        def mock_exchange(data):
+            nonlocal call_count
+            call_count += 1
+            time.sleep(0.1) # Simulate network delay
+            with oauth._lock:
+                oauth.access = "new_token"
+                oauth.expiry = time.time() + 3600
+            return "new_token"
+
+        oauth._exchange = MagicMock(side_effect=mock_exchange)
+
+        results = []
+
+        def worker():
+            results.append(oauth.token())
+
+        threads = [threading.Thread(target=worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(results, ["new_token"] * 5)
+        self.assertEqual(call_count, 1)
+
+    @patch("gdsm.services.oauth.load_secret")
+    @patch("gdsm.services.oauth.delete_secret")
+    def test_logout_during_refresh(self, mock_delete, mock_load):
+        mock_load.return_value = "refresh_mock"
+        settings = Settings(client_id="test_client_id")
+        oauth = GoogleOAuth(settings, lambda s: None)
+
+        def mock_exchange(data):
+            time.sleep(0.2)
+            with oauth._lock:
+                oauth.access = "new_token"
+                oauth.expiry = time.time() + 3600
+            return "new_token"
+
+        oauth._exchange = MagicMock(side_effect=mock_exchange)
+
+        def refresh_worker():
+            oauth.token()
+
+        t = threading.Thread(target=refresh_worker)
+        t.start()
+
+        time.sleep(0.05) # Wait for token refresh to start
+        oauth.logout()
+        t.join()
+
+        self.assertEqual(oauth.access, "")
+        self.assertEqual(oauth.expiry, 0)
+        mock_delete.assert_called_with("refresh_token")
 
 if __name__ == "__main__":
     unittest.main()
