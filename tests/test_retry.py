@@ -35,13 +35,37 @@ class RetryTests(unittest.TestCase):
         func.side_effect = [err, "success"]
 
         import time
+        from unittest.mock import patch
 
-        start = time.time()
-        decorated = with_retry(max_retries=3)(func)
-        decorated()
-        end = time.time()
+        with patch("gdsm.utils.retry.time.sleep") as mock_sleep:
+            decorated = with_retry(max_retries=3)(func)
+            decorated()
 
-        self.assertTrue(end - start >= 1.0)
+        # 1 second wait -> 10 iterations of 0.1s in _safe_sleep
+        self.assertGreaterEqual(mock_sleep.call_count, 10)
+        self.assertEqual(func.call_count, 2)
+
+    def test_retry_after_http_date(self):
+        func = MagicMock()
+        import datetime
+        import email.utils
+        from unittest.mock import patch
+
+        future_date = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=2)
+        http_date = email.utils.format_datetime(future_date)
+
+        err = urllib.error.HTTPError(
+            "", 429, "Too Many Requests", {"Retry-After": http_date}, None
+        )
+        func.side_effect = [err, "success"]
+
+        with patch("gdsm.utils.retry.time.sleep") as mock_sleep:
+            decorated = with_retry(max_retries=3)(func)
+            decorated()
+
+        # At least 1s wait -> 10+ iterations of 0.1s in _safe_sleep
+        # Time passes during test execution, so it's safer to check for >= 10
+        self.assertGreaterEqual(mock_sleep.call_count, 10)
         self.assertEqual(func.call_count, 2)
 
     def test_retry_on_403_quota(self):
