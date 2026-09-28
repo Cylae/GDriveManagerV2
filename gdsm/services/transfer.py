@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import os
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
 from ..domain.models import DriveItem, Settings
-from ..utils.paths import ensure_space, unique_target
 from ..services.verification import verify_binary
+from ..utils.paths import ensure_space, unique_target
 
 
 class TransferEngine:
@@ -44,7 +46,7 @@ class TransferEngine:
                     if attempt == self.s.retries:
                         raise
                     time.sleep(min(60, 2**attempt) + 0.2)
-            ok, state, sha, detail = verify_binary(item, partial, cancel=cancel)
+            ok, _state, sha, detail = verify_binary(item, partial, cancel=cancel)
             if not ok:
                 raise OSError(detail)
             os.replace(partial, target)
