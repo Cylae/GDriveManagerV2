@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import json
+import os
 import urllib.parse
 import urllib.request
+from pathlib import Path
+
 from ..domain.models import DriveItem
 from ..utils.retry import with_retry
 from .cache import InventoryCache
-from pathlib import Path
-import os
 from .oauth import GoogleOAuth
 
 
