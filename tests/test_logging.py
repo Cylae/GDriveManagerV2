@@ -1,7 +1,8 @@
-import unittest
-import tempfile
 import json
+import tempfile
+import unittest
 from pathlib import Path
+
 from gdsm.services.logging import Logger
 
 

@@ -1,7 +1,8 @@
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
+
 from gdsm.domain.models import DriveItem, Settings
 from gdsm.services.transfer import TransferEngine
 
@@ -35,7 +36,7 @@ class TransferTests(unittest.TestCase):
             False,
             True,
         )
-        status, target, detail = self.engine.download(
+        status, _target, _detail = self.engine.download(
             item, self.root / "doc", self.cancel
         )
         self.assertEqual(status, "exported_unverifiable")
@@ -81,7 +82,7 @@ class TransferTests(unittest.TestCase):
         urllib.request.urlopen = mock_download
 
         try:
-            status, target, detail = self.engine.download(
+            status, _target, _detail = self.engine.download(
                 item, self.root / "file.bin", self.cancel
             )
             self.assertEqual(status, "verified")
