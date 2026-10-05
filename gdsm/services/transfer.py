@@ -44,7 +44,7 @@ class TransferEngine:
                     if attempt == self.s.retries:
                         raise
                     time.sleep(min(60, 2**attempt) + 0.2)
-            ok, state, sha, detail = verify_binary(item, partial, cancel=cancel)
+            ok, _state, sha, detail = verify_binary(item, partial, cancel=cancel)
             if not ok:
                 raise OSError(detail)
             os.replace(partial, target)
