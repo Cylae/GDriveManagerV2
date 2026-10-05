@@ -35,7 +35,7 @@ class TransferTests(unittest.TestCase):
             False,
             True,
         )
-        status, target, detail = self.engine.download(
+        status, _target, _detail = self.engine.download(
             item, self.root / "doc", self.cancel
         )
         self.assertEqual(status, "exported_unverifiable")
@@ -81,7 +81,7 @@ class TransferTests(unittest.TestCase):
         urllib.request.urlopen = mock_download
 
         try:
-            status, target, detail = self.engine.download(
+            status, _target, _detail = self.engine.download(
                 item, self.root / "file.bin", self.cancel
             )
             self.assertEqual(status, "verified")
