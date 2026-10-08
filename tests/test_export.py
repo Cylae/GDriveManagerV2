@@ -1,7 +1,8 @@
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
+
 from gdsm.domain.models import DriveItem
 from gdsm.services.export import export_workspace_file
 
@@ -49,7 +50,7 @@ class ExportTests(unittest.TestCase):
         )
         self.api._request.return_value = self._mock_response(b"docx_data")
 
-        status, path, detail = export_workspace_file(self.api, item, self.root / "doc")
+        status, path, _detail = export_workspace_file(self.api, item, self.root / "doc")
         self.assertEqual(status, "exported_unverifiable")
         self.assertTrue(path.endswith(".docx"))
         self.assertEqual((self.root / "doc.docx").read_bytes(), b"docx_data")
@@ -71,7 +72,7 @@ class ExportTests(unittest.TestCase):
         )
         self.api._request.return_value = self._mock_response(b"pdf_data")
 
-        status, path, detail = export_workspace_file(self.api, item, self.root / "form")
+        status, path, _detail = export_workspace_file(self.api, item, self.root / "form")
         self.assertEqual(status, "exported_unverifiable")
         self.assertTrue(path.endswith(".pdf"))
 
@@ -93,7 +94,7 @@ class ExportTests(unittest.TestCase):
         # return more than 10 bytes
         self.api._request.return_value = self._mock_response(b"x" * 11)
 
-        status, path, detail = export_workspace_file(
+        status, _path, detail = export_workspace_file(
             self.api, item, self.root / "doc", max_bytes=10
         )
         self.assertEqual(status, "error")
@@ -118,7 +119,7 @@ class ExportTests(unittest.TestCase):
             b"x", headers={"Content-Length": "11"}
         )
 
-        status, path, detail = export_workspace_file(
+        status, _path, detail = export_workspace_file(
             self.api, item, self.root / "doc", max_bytes=10
         )
         self.assertEqual(status, "error")

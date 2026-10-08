@@ -268,7 +268,7 @@ class App:
                 jobs.append((i, safe_target(self.dest.get(), i.name)))
 
             for item, target in exports:
-                status, path, detail = export_workspace_file(api, item, target)
+                status, _path, detail = export_workspace_file(api, item, target)
                 self.events.put(("queue", (item.name, status, detail)))
 
             progress, add_done = self._make_progress_callback(jobs)
@@ -335,7 +335,7 @@ class App:
             for i in chosen:
                 if i.is_native:
                     target = safe_target(self.dest.get(), i.name)
-                    status, path, detail = export_workspace_file(api, i, target)
+                    status, _path, detail = export_workspace_file(api, i, target)
                     if status == "exported_unverifiable":
                         ans = self._ask_user(
                             "Confirm Trash Workspace Export",
@@ -356,7 +356,7 @@ class App:
 
             yes_to_all = False
             for item, result in engine.download_many(jobs, self.cancel, progress):
-                status, path, detail = result
+                status, _path, detail = result
                 add_done(item.size if status in ("verified", "already_verified") else 0)
 
                 if status in ("verified", "already_verified"):
