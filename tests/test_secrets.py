@@ -1,7 +1,8 @@
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
-from gdsm.storage.secrets import save_secret, load_secret, delete_secret
+
+from gdsm.storage.secrets import delete_secret, load_secret, save_secret
 from gdsm.storage.settings import JsonStore
 
 
