@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 
 def save_secret(key: str, value: str) -> None:
@@ -9,7 +8,7 @@ def save_secret(key: str, value: str) -> None:
         _save_keyring(key, value)
 
 
-def load_secret(key: str) -> Optional[str]:
+def load_secret(key: str) -> str | None:
     if sys.platform == "win32":
         return _load_win32(key)
     else:
@@ -37,13 +36,20 @@ def _save_keyring(key: str, value: str) -> None:
         os.makedirs(d, exist_ok=True)
         fallback_path = os.path.join(d, f".{key}.secret")
 
-        # Open the file securely, preventing any window of time where permissions are weak
-        fd = os.open(fallback_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with open(fd, "w", encoding="utf-8") as f:
-            f.write(base64.b64encode(value.encode()).decode())
+        import tempfile
+        fd, tmp = tempfile.mkstemp(dir=d, prefix=f".{key}-", text=False)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                f.write(base64.b64encode(value.encode()).decode())
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, fallback_path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
 
 
-def _load_keyring(key: str) -> Optional[str]:
+def _load_keyring(key: str) -> str | None:
     try:
         import keyring  # type: ignore
         return keyring.get_password("GDriveSpaceManager", key)
@@ -109,14 +115,24 @@ def _save_win32(key: str, value: str) -> None:
             import os
 
             path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with open(fd, "wb") as f:
-                f.write(encrypted_data)
+            import tempfile
+            d = os.path.dirname(path)
+            os.makedirs(d, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(dir=d, prefix=f".{key}-", text=False)
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(encrypted_data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, path)
+            finally:
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
         finally:
             LocalFree(data_out.pbData)
 
 
-def _load_win32(key: str) -> Optional[str]:
+def _load_win32(key: str) -> str | None:
     import os
 
     path = os.path.expanduser(f"~/.gdrive-space-manager/.{key}.dpapi")
