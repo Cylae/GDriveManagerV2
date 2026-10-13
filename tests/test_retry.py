@@ -44,6 +44,29 @@ class RetryTests(unittest.TestCase):
         self.assertTrue(end - start >= 1.0)
         self.assertEqual(func.call_count, 2)
 
+    def test_retry_after_http_date(self):
+        func = MagicMock()
+        import datetime
+        import email.utils
+
+        future = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=1.5)
+        date_str = email.utils.format_datetime(future)
+        err = urllib.error.HTTPError(
+            "", 429, "Too Many Requests", {"Retry-After": date_str}, None
+        )
+        func.side_effect = [err, "success"]
+
+        import time
+        from unittest.mock import patch
+
+        start = time.time()
+        decorated = with_retry(max_retries=3)(func)
+        with patch("gdsm.utils.retry.time.sleep") as mock_sleep:
+            decorated()
+
+        mock_sleep.assert_called()
+        self.assertEqual(func.call_count, 2)
+
     def test_retry_on_403_quota(self):
         func = MagicMock()
         import io
