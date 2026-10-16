@@ -27,22 +27,41 @@ class RetryTests(unittest.TestCase):
 
         self.assertEqual(func.call_count, 1)
 
-    def test_retry_after_header(self):
+    @unittest.mock.patch("gdsm.utils.retry.time.sleep")
+    def test_retry_after_header(self, mock_sleep):
         func = MagicMock()
         err = urllib.error.HTTPError(
             "", 429, "Too Many Requests", {"Retry-After": "1"}, None
         )
         func.side_effect = [err, "success"]
 
-        import time
-
-        start = time.time()
         decorated = with_retry(max_retries=3)(func)
         decorated()
-        end = time.time()
 
-        self.assertTrue(end - start >= 1.0)
+        total_sleep = sum(call.args[0] for call in mock_sleep.call_args_list)
+        self.assertTrue(0.9 <= total_sleep <= 1.1)
         self.assertEqual(func.call_count, 2)
+
+    @unittest.mock.patch("gdsm.utils.retry.time.sleep")
+    def test_retry_after_http_date(self, mock_sleep):
+        func = MagicMock()
+        import email.utils
+        from datetime import datetime, timezone, timedelta
+
+        future = datetime.now(timezone.utc) + timedelta(seconds=15)
+        http_date = email.utils.format_datetime(future)
+
+        err = urllib.error.HTTPError(
+            "", 429, "Too Many Requests", {"Retry-After": http_date}, None
+        )
+        func.side_effect = [err, "success"]
+
+        decorated = with_retry(max_retries=3)(func)
+        decorated()
+
+        self.assertEqual(func.call_count, 2)
+        total_sleep = sum(call.args[0] for call in mock_sleep.call_args_list)
+        self.assertTrue(14.0 <= total_sleep <= 16.0)
 
     def test_retry_on_403_quota(self):
         func = MagicMock()
