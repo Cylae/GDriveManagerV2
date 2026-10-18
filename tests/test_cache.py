@@ -1,10 +1,11 @@
-import unittest
+import os
 import tempfile
 import time
-import os
+import unittest
 from pathlib import Path
+
 from gdsm.domain.models import DriveItem
-from gdsm.services.cache import InventoryCache, CACHE_VERSION
+from gdsm.services.cache import CACHE_VERSION, InventoryCache
 
 
 class CacheTests(unittest.TestCase):
@@ -32,7 +33,6 @@ class CacheTests(unittest.TestCase):
             "1", "f", "text", 0, None, "", "", (), False, False, False, False
         )
         self.cache.save([item])
-        # Force old mtime
         os.utime(self.cache_file, (time.time() - 5, time.time() - 5))
         self.assertIsNone(self.cache.load())
 

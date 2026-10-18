@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import re
 import shutil
 from pathlib import Path
@@ -19,7 +20,7 @@ def safe_name(value: str, max_len: int = 180) -> str:
     result = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().rstrip(". ")
     if not result:
         result = "_"
-    if Path(result).stem.upper() in _RESERVED:
+    if result.split(".", 1)[0].upper() in _RESERVED:
         result = "_" + result
     suffix = Path(result).suffix
     if len(result) > max_len:

@@ -1,0 +1,523 @@
+{
+  "date": "2026-10-18",
+  "repository": "Cylae/GDriveManagerV2",
+  "base_sha": "dc3e2650cf1fedb1f66bfed5879e476756352d41",
+  "source_heads": [
+    {
+      "pr": 28,
+      "branch": "fix-oauth-thread-safety-14924463312199944957",
+      "sha": "7be373e4e4f2d8a30fa9d4b79af93573854a50b2",
+      "title": "Fix race condition in GoogleOAuth token refresh"
+    },
+    {
+      "pr": 29,
+      "branch": "jules-3574376871340425940-d1793a39",
+      "sha": "2986d67c170b8e1ebaadab16293b67409987c2f3",
+      "title": "Fix: Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 30,
+      "branch": "oauth-thread-safety-12792288205778071329",
+      "sha": "96189b501e555aae7f6243b19d598a823246c410",
+      "title": "Fix: Thread-safe GoogleOAuth token refresh"
+    },
+    {
+      "pr": 31,
+      "branch": "thread-safe-oauth-refresh-12098265721496726201",
+      "sha": "40e7bb8e7f9adcf0d54268e360af7967e4174097",
+      "title": "Fix: Make OAuth refresh thread-safe using double-checked locking"
+    },
+    {
+      "pr": 32,
+      "branch": "oauth-lock-13778694181441602512",
+      "sha": "55c1ef5c01a558c9098e4c6679d1e18b5d14a005",
+      "title": "Add locking to oauth token for concurrency"
+    },
+    {
+      "pr": 33,
+      "branch": "fix-oauth-thread-safety-17654867503526136002",
+      "sha": "10306e56074bd69ea92cb03265a46d0f4f2ebf56",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 34,
+      "branch": "fix/oauth-thread-safety-14054625305145970221",
+      "sha": "53ff9cb946ddffd814ef2d5a7958fa689e3097c2",
+      "title": "Fix: Make OAuth token refresh thread-safe using double-checked locking"
+    },
+    {
+      "pr": 35,
+      "branch": "jules-16689361214774091588-9451cf55",
+      "sha": "14e0323658becadc9fbd78233120b5e93dc2fc97",
+      "title": "feat(oauth): make token refresh mechanism thread-safe"
+    },
+    {
+      "pr": 36,
+      "branch": "oauth-thread-safety-10250100969147517061",
+      "sha": "129322c1cccebe2140cbad4e6ef03ed4f01cf099",
+      "title": "Fix OAuth thread safety"
+    },
+    {
+      "pr": 37,
+      "branch": "fix-oauth-thread-safety-6665343613538761061",
+      "sha": "5dc574325a021f16c5e5fa9c4da8e6999b6457ee",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 38,
+      "branch": "jules-oauth-dcl-16300374200624284514",
+      "sha": "8f754b6e5bba6ba307c07a986a4850d758fd8dd7",
+      "title": "Security/Reliability: Make GoogleOAuth.token() thread-safe"
+    },
+    {
+      "pr": 39,
+      "branch": "fix/oauth-thread-safety-13441244918181736579",
+      "sha": "c07649a9cece5cd7aabca44827a8362fe5cb848a",
+      "title": "Fix: Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 40,
+      "branch": "fix-oauth-thread-safety-13905470050784094568",
+      "sha": "99403dd53b994296016a8d21c32c95d60e0c869b",
+      "title": "Fix thread-safety in Google OAuth token generation mechanism"
+    },
+    {
+      "pr": 41,
+      "branch": "main-6337621606359944164",
+      "sha": "5b387145b8e61c96468333631e67c6910a912bc4",
+      "title": "Implement thread-safe token refresh and fix cross-platform mypy issues"
+    },
+    {
+      "pr": 42,
+      "branch": "oauth-thread-safety-7825116029863123989",
+      "sha": "1bd604266d5ff22ea7072bdf7042cf584498a3e9",
+      "title": "Make OAuth refresh thread-safe"
+    },
+    {
+      "pr": 43,
+      "branch": "fix-oauth-thread-safety-4012310005345134880",
+      "sha": "ecc68dd1a0859bb6d701d231eb436f272260d276",
+      "title": "Make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 44,
+      "branch": "jules-7467349115283377699-97ccdf12",
+      "sha": "99129f30ea5b7d8b5b58a62e98d4ac735f59c284",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 45,
+      "branch": "fix-oauth-thread-safety-5941215845212700977",
+      "sha": "007d54c14bba2241d9907b174a9ccdf46375fb03",
+      "title": "Fix thread safety in OAuth token refresh"
+    },
+    {
+      "pr": 46,
+      "branch": "oauth-thread-safety-12128105538851722337",
+      "sha": "328beca6dcaf45e2378e2bdba2f0f385b181dd20",
+      "title": "Fix: Thread-safe OAuth token refresh and mypy resolutions"
+    },
+    {
+      "pr": 47,
+      "branch": "fix/oauth-thread-safety-14837956573130312721",
+      "sha": "6da82cbe80a33dc64683b64db6d2b816e45ccab6",
+      "title": "Make GoogleOAuth thread-safe"
+    },
+    {
+      "pr": 48,
+      "branch": "oauth-thread-safety-495773387258249329",
+      "sha": "1927aa241baf0c81e0bfd01cc1254a06f41ee421",
+      "title": "feat: implement thread-safe token refresh mechanism"
+    },
+    {
+      "pr": 49,
+      "branch": "improve-retry-after-parsing-11575911946017988552",
+      "sha": "8c9b4398ba522cdf81e808f994ea5077f0096ded",
+      "title": "Improve Retry-After parsing to support HTTP dates"
+    },
+    {
+      "pr": 50,
+      "branch": "fix/oauth-thread-safety-10261780674372415926",
+      "sha": "db3de1779d44b1e218cc0034c0c601c87fd5cca8",
+      "title": "Fix Thread-Safety in OAuth Token Refresh"
+    },
+    {
+      "pr": 51,
+      "branch": "fix/atomic-file-writes-o-excl-17446332475636838373",
+      "sha": "2fb4ac5508b60f2c1645321d96866f9619716263",
+      "title": "Use O_EXCL for all temp file creation and atomic replacement for secrets"
+    },
+    {
+      "pr": 52,
+      "branch": "fix-oauth-thread-safety-18321154144409539761",
+      "sha": "09e8f505b3f4649e2e5ed8efe77041555bcbe6bd",
+      "title": "Make OAuth token refresh mechanism thread-safe"
+    },
+    {
+      "pr": 53,
+      "branch": "fix-oauth-thread-safety-2652138752659168240",
+      "sha": "d7a1088556623461743a50687dd394cafe1711d2",
+      "title": "Make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 54,
+      "branch": "feat/oauth-thread-safety-213200729856448044",
+      "sha": "cb48a1e0981880ce4ddf202b6d2f536111967ec2",
+      "title": "Make OAuth refresh thread-safe with double-checked locking"
+    },
+    {
+      "pr": 55,
+      "branch": "fix/oauth-thread-safety-1406640692394890668",
+      "sha": "a14b3ab26407d7fc0284183d0eafff069a03a9ce",
+      "title": "Fix OAuth token refresh race conditions"
+    },
+    {
+      "pr": 56,
+      "branch": "fix-oauth-thread-safety-5875695308902406834",
+      "sha": "6108e637a1179e2881bff167040afdf686478675",
+      "title": "feat(oauth): make token refresh thread-safe with double-checked locking"
+    },
+    {
+      "pr": 57,
+      "branch": "oauth-thread-safety-17143201986975291840",
+      "sha": "47a3dd663f44dd214b57e187a7b99ac29ddd89c1",
+      "title": "feat: Make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 58,
+      "branch": "jules-15837071320507064831-44abd9b8",
+      "sha": "8fc3ec0c20d8fa3ea52600dfc031c0ee3f7ba51a",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 59,
+      "branch": "fix/oauth-thread-safety-13565396908999051633",
+      "sha": "7a0b97691f46b2466badfd233ede5f87b5538e0b",
+      "title": "fix: make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 60,
+      "branch": "jules-oauth-thread-safe-7087387770613662686",
+      "sha": "8d8b8ba80ec3a9f0be2b0adf4539727807f931a0",
+      "title": "Make GoogleOAuth thread-safe"
+    },
+    {
+      "pr": 61,
+      "branch": "thread-safe-oauth-12418207539663549488",
+      "sha": "574bbee5e77ee6e1352cdbc9996e0c533f95445d",
+      "title": "feat: make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 62,
+      "branch": "fix-oauth-thread-safety-3372854085286098066",
+      "sha": "89a146da5210eaede45e7be1808593da555e55e3",
+      "title": "fix: make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 63,
+      "branch": "fix-oauth-thread-safety-677739072284006712",
+      "sha": "1b6e2f0f773765429733dadf3f0fb8114825fbe5",
+      "title": "fix(oauth): make token refresh thread-safe using double-checked locking"
+    },
+    {
+      "pr": 64,
+      "branch": "jules-3296917993811856708-06fdda36",
+      "sha": "905c07807069ca681168e7632c06a6cb3a48838a",
+      "title": "Refactor secrets fallback to use atomic writes and log errors"
+    },
+    {
+      "pr": 65,
+      "branch": "main-2575108822767409281",
+      "sha": "fb44db47450fd5c578b9d086fc7d02456567b939",
+      "title": "Fix OAuth token refresh race conditions"
+    },
+    {
+      "pr": 66,
+      "branch": "main-10516882985307432271",
+      "sha": "4ed27969b06b9cf0334f40de0955f6c233b90a8d",
+      "title": "Refactor atomic writes to use tempfile.mkstemp securely"
+    },
+    {
+      "pr": 67,
+      "branch": "fix/oauth-thread-safety-14445168528324717729",
+      "sha": "cb0bf2575b001e35b0576ad11140e283bfb1fba7",
+      "title": "Fix thread safety in GoogleOAuth token refresh mechanism"
+    },
+    {
+      "pr": 68,
+      "branch": "oauth-thread-safety-15347571624739767771",
+      "sha": "fd436bfd00372c41f7ac189b3d9beca4b269f308",
+      "title": "Fix: Make GoogleOAuth.token() thread-safe"
+    },
+    {
+      "pr": 69,
+      "branch": "fix/oauth-thread-safety-12870399716963811845",
+      "sha": "a83ec1bd660e2f1463524cb1130097a18e61d3c6",
+      "title": "Fix: Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 70,
+      "branch": "fix-oauth-thread-safety-4073723761765260123",
+      "sha": "1cf9a5933ad9560080cca4c652ef77faeddaab00",
+      "title": "Fix thread-safety in Google OAuth token refresh"
+    },
+    {
+      "pr": 71,
+      "branch": "fix/oauth-thread-safety-10338340995728690326",
+      "sha": "88a70043a04d60afe527be6c6941cf3956e788b4",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 72,
+      "branch": "feat/retry-after-http-date-9742157961440392350",
+      "sha": "315fea3fa9bb6719b1eb11454eb79c165fc14d22",
+      "title": "feat(retry): Support HTTP-date format in Retry-After header"
+    },
+    {
+      "pr": 73,
+      "branch": "improve-retry-after-parsing-12785514622858676942",
+      "sha": "37362aada9aef7aeb38f2591fc8d0fde7c0d8b11",
+      "title": "Improve `Retry-After` header parsing and deterministic tests"
+    },
+    {
+      "pr": 74,
+      "branch": "improve-retry-after-parsing-9179417830910012804",
+      "sha": "b18c8b5174f6992dc89a3da14a726363569f4063",
+      "title": "Improve Retry-After header parsing for HTTP dates"
+    },
+    {
+      "pr": 75,
+      "branch": "fix-retry-after-http-date-13187100763401187623",
+      "sha": "58c2844fd920a69b1c521cfe61e7dadbd76b979c",
+      "title": "feat: parse HTTP dates in Retry-After headers"
+    },
+    {
+      "pr": 76,
+      "branch": "main-10147469390958973407",
+      "sha": "f5ad910bb64949ceeb7b195587bd35d31e684caa",
+      "title": "Make OAuth token refresh mechanism thread-safe"
+    },
+    {
+      "pr": 77,
+      "branch": "oauth-thread-safety-8665193677562047995",
+      "sha": "1219ed8e0cab884e340b0d481e675fc719897d06",
+      "title": "feat: make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 78,
+      "branch": "jules-11200897009414748344-a591d6f1",
+      "sha": "2202acd4a39c518b13bca931c6ade8f66e3ffe86",
+      "title": "Fix thread-safety in Google OAuth token refresh"
+    },
+    {
+      "pr": 79,
+      "branch": "feat/oauth-thread-safety-2602106903885286225",
+      "sha": "59164b2fc9ff3c16aa73ede6d032b21fd102475a",
+      "title": "feat: add thread-safety to OAuth token refresh"
+    },
+    {
+      "pr": 80,
+      "branch": "retry-after-http-date-4326404934760379077",
+      "sha": "8c29060506205f6aecd217263ff635ac62507f14",
+      "title": "Add support for HTTP-date format in Retry-After headers"
+    },
+    {
+      "pr": 81,
+      "branch": "jules-12936104819455708715-97cb1205",
+      "sha": "4e53e8dd90b0defea511ee3cb22241de429f6179",
+      "title": "Fix Retry-After header parsing for HTTP dates"
+    },
+    {
+      "pr": 82,
+      "branch": "fix-oauth-thread-safety-3783854460974308757",
+      "sha": "ff6aa8bb114dbf32a44c70e5a3350740848436d4",
+      "title": "fix: make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 83,
+      "branch": "oauth-thread-safety-10955731041664526257",
+      "sha": "14ea651270ccd6dbb6ec7a46430e49089849d832",
+      "title": "Fix: Make OAuth refresh mechanism thread-safe"
+    },
+    {
+      "pr": 84,
+      "branch": "fix/thread-safe-oauth-token-refresh-524822309876830174",
+      "sha": "b606593dd40298217227f6ffea7d1bf3fa385730",
+      "title": "Fix thread safety in OAuth token refresh logic"
+    },
+    {
+      "pr": 85,
+      "branch": "fix-oauth-thread-safety-9278769750664907010",
+      "sha": "349fd6214ff074a71328bace45f1adf992b15791",
+      "title": "fix: make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 86,
+      "branch": "fix/oauth-thread-safety-174168116427388972",
+      "sha": "0a00e6d227ce5ec96cf8cf533e0cbf7984a6e862",
+      "title": "Fix OAuth refresh thread safety"
+    },
+    {
+      "pr": 87,
+      "branch": "make-oauth-thread-safe-14939236661179088919",
+      "sha": "65c781a2b5250af7539c59f623a317b9754e231f",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 88,
+      "branch": "oauth-thread-safety-6083305546192124360",
+      "sha": "9a53ac32f1002c65a0c8594981be07e59cfb42ba",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 89,
+      "branch": "fix/thread-safe-oauth-refresh-11518636164546462146",
+      "sha": "48719827fbf49715cdcfb8a5b082d41a40d032af",
+      "title": "fix: make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 90,
+      "branch": "fix-ruff-linting-warnings-6833187552513233255",
+      "sha": "707351fc0d0e0647a108e202485f350f0bf7cb5a",
+      "title": "Fix Ruff I001 and RUF059 linting warnings"
+    },
+    {
+      "pr": 91,
+      "branch": "feature/thread-safe-oauth-refresh-14232793097781153628",
+      "sha": "2f3634e9d5e7412e748fca24a78c65d20bfa2404",
+      "title": "Thread-safe OAuth token fetch and refresh"
+    },
+    {
+      "pr": 92,
+      "branch": "improve-code-quality-1449504609584729849",
+      "sha": "f4cb05ac3fe84a7a33a10e9a86729fb3c8c07580",
+      "title": "Fix linting and maintainability issues"
+    },
+    {
+      "pr": 93,
+      "branch": "fix/oauth-thread-safety-11636593710149424149",
+      "sha": "1e05ab6d9028d1a750acd82a609f562cd23e7362",
+      "title": "fix(oauth): make token refresh thread-safe"
+    },
+    {
+      "pr": 94,
+      "branch": "fix/oauth-thread-safety-7086773048545026362",
+      "sha": "af341f3d82c6d938b059be409bd032b4c4593d5b",
+      "title": "Fix: Make GoogleOAuth thread-safe"
+    },
+    {
+      "pr": 95,
+      "branch": "fix-oauth-thread-safety-3205643271573254974",
+      "sha": "a8dc56d2470f518a3cb033d69e886b197de20a80",
+      "title": "Fix thread safety in GoogleOAuth token retrieval and logout"
+    },
+    {
+      "pr": 96,
+      "branch": "fix-retry-after-http-date-14695750001285515604",
+      "sha": "4558e174dcdae17a06adea59239230cd2f2c0b16",
+      "title": "feat(retry): Implement HTTP-date parsing for Retry-After headers"
+    },
+    {
+      "pr": 97,
+      "branch": "main-16573345702332457417",
+      "sha": "55212787362dac2dd7c83fd7896086cc7e533800",
+      "title": "Make GoogleOAuth thread-safe"
+    },
+    {
+      "pr": 98,
+      "branch": "oauth-thread-safety-6296249374734175822",
+      "sha": "3c53483d0f7a69911048578a9e6e8c20ff7f1bd6",
+      "title": "Implement Thread-Safe OAuth Token Refresh"
+    },
+    {
+      "pr": 99,
+      "branch": "main-2331191837934899532",
+      "sha": "d65993e3ca9d0859f4e45c495a85bbb5eb4f0321",
+      "title": "feat: Make GoogleOAuth refresh mechanism thread-safe"
+    },
+    {
+      "pr": 100,
+      "branch": "fix-oauth-thread-safety-14314982256235188349",
+      "sha": "8b6113acbc492c90f2425d48e108e6f925028707",
+      "title": "Fix OAuth token refresh thread safety and clean up code"
+    },
+    {
+      "pr": 101,
+      "branch": "oauth-thread-safety-7881570048548258361",
+      "sha": "f2f37ccabc6bd6e7e039483b593f287d0701c2fd",
+      "title": "Fix: Make OAuth refresh thread-safe"
+    },
+    {
+      "pr": 102,
+      "branch": "jules-thread-safe-oauth-refresh-10393958890776198366",
+      "sha": "a092cb5161de68bdcb95d3b446ad747479a3e58d",
+      "title": "Make OAuth refresh thread-safe"
+    },
+    {
+      "pr": 103,
+      "branch": "fix-ruf059-unused-variables-11826214579834533461",
+      "sha": "eb3ff813817901b2e237ae66beb979afd39a6bcb",
+      "title": "Fix RUF059 unused variable linting errors"
+    },
+    {
+      "pr": 104,
+      "branch": "fix-oauth-thread-safety-640309578012211436",
+      "sha": "e75e7988650c040c86f62c5ad80b7a90b201688e",
+      "title": "Make OAuth refresh thread-safe"
+    },
+    {
+      "pr": 105,
+      "branch": "jules/thread-safe-oauth-refresh-12547151891545842833",
+      "sha": "7600b3e394e8063a390b920b028955f3f617658b",
+      "title": "feat(oauth): make GoogleOAuth token refresh thread-safe"
+    },
+    {
+      "pr": 106,
+      "branch": "fix-oauth-thread-safety-1607642818145453588",
+      "sha": "4e281bba5b9ae9a384a0f811348ecc9b050afb15",
+      "title": "Make Google OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 107,
+      "branch": "fix-oauth-thread-safety-12441435504512357310",
+      "sha": "8dc6c8d7222f6a9adcddc8af603c9e2fefefde09",
+      "title": "Enhance OAuth token refresh thread safety with double-checked locking"
+    },
+    {
+      "pr": 108,
+      "branch": "fix-atomic-writes-15492729102489706728",
+      "sha": "514b2fc8c1a963b6ab995acdb48199d4c33f9580",
+      "title": "Fix atomic file replacement to be safe and compatible with Windows"
+    },
+    {
+      "pr": 109,
+      "branch": "oauth-thread-safety-7640625089892560156",
+      "sha": "11a6ae9498a9614aaa195c17fa53dac0e1d8670d",
+      "title": "Make OAuth token refresh thread-safe"
+    },
+    {
+      "pr": 110,
+      "branch": "fix/retry-after-http-date-4637471679245964085",
+      "sha": "cac7b90a28c2881d4e2df20321be45744b7ea596",
+      "title": "Fix HTTP-date parsing for Retry-After header"
+    },
+    {
+      "pr": 111,
+      "branch": "jules-6218892931001648547-532b9d22",
+      "sha": "47853bc445fed3ebaa91ddab324dc825020f16b5",
+      "title": "Add thread-safe GoogleOAuth token refresh"
+    },
+    {
+      "pr": 112,
+      "branch": "jules-16762927828434011061-821474d1",
+      "sha": "0725bc952e5222281f13fcd2bf0bd058b555d86b",
+      "title": "DAILY ENGINEERING REPORT — 2023-10-15"
+    },
+    {
+      "pr": 113,
+      "branch": "jules-retry-after-http-date-13972372188352458833",
+      "sha": "fec51151724077df9fd4446029cfb209f0e9332c",
+      "title": "feat: parse HTTP-date in Retry-After headers"
+    }
+  ]
+}

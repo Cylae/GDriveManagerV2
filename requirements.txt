@@ -1,1 +1,1 @@
-keyring
+keyring>=25.7,<26

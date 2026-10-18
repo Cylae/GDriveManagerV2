@@ -1,11 +1,15 @@
 import csv
 import heapq
 import queue
+import sys
 import threading
 import tkinter as tk
+from functools import partial
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Any
 
+from ..services.cache import InventoryCache
 from ..services.drive_api import DriveApi
 from ..services.export import export_workspace_file
 from ..services.logging import Logger
@@ -24,20 +28,27 @@ class App:
         self.settings = self.store.load()
         self.log = Logger(self.home / "operations.jsonl")
         self.items = []
-        self.events = queue.Queue()
+        self.events: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.stats = SessionStats()
+        self.stats.reset()
         self.cancel = threading.Event()
+        self._api = DriveApi(GoogleOAuth(self.settings, self.store.save))
+        self.busy = True
+        self.closing = False
         self.root = tk.Tk()
-        self.root.title("GDrive Space Manager — project_v0.3")
+        self.root.title("GDrive Space Manager")
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.root.geometry("1250x760")
         if self.settings.theme == "dark":
-            self.root.tk_setPalette(background='#333', foreground='white')
+            self.root.tk_setPalette(background="#333", foreground="white")
         else:
-            self.root.tk_setPalette(background='white', foreground='black')
+            self.root.tk_setPalette(background="white", foreground="black")
         self._widgets()
         self.root.after(100, self._drain)
         self.status.set("Checking cache...")
-        threading.Thread(target=self._startup_worker, daemon=True).start()
+        threading.Thread(
+            target=self._run_worker, args=(self._startup_worker, ()), daemon=True
+        ).start()
 
     def _widgets(self):
         self._setup_toolbar()
@@ -91,14 +102,18 @@ class App:
         self.tree = ttk.Treeview(
             main_paned, columns=cols, show="headings", selectmode="extended"
         )
-        for c, w in zip(cols, (250, 300, 230, 100, 160, 150)):
+        for c, w in zip(cols, (250, 300, 230, 100, 160, 150), strict=True):
             self.tree.heading(c, text=c.title())
             self.tree.column(c, width=w, stretch=c in ("name", "path", "type"))
         main_paned.add(self.tree, weight=3)
 
         top_items_frame = ttk.LabelFrame(main_paned, text="Top largest items")
         self.top_items_tree = ttk.Treeview(
-            top_items_frame, columns=("name", "size"), show="headings", selectmode="none", height=5
+            top_items_frame,
+            columns=("name", "size"),
+            show="headings",
+            selectmode="none",
+            height=5,
         )
         self.top_items_tree.heading("name", text="Name")
         self.top_items_tree.heading("size", text="Size")
@@ -114,16 +129,14 @@ class App:
                     lst.sort(key=lambda t: int(t[0]), reverse=reverse)
                 else:
                     lst.sort(reverse=reverse)
-            except Exception:
+            except (ValueError, TypeError):
                 lst.sort(reverse=reverse)
-            for index, (val, k) in enumerate(lst):
+            for index, (_, k) in enumerate(lst):
                 self.tree.move(k, "", index)
             self.tree.heading(col, command=lambda: sort_column(col, not reverse))
 
         for c in cols:
-            self.tree.heading(
-                c, text=c.title(), command=lambda _c=c: sort_column(_c, False)
-            )
+            self.tree.heading(c, text=c.title(), command=partial(sort_column, c, False))
 
     def _setup_status_bar(self):
         self.progress = ttk.Progressbar(self.root, maximum=100)
@@ -144,20 +157,47 @@ class App:
 
     def open_logs(self):
         import os
-        import platform
         import subprocess
 
         path = str(self.home.absolute())
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             os.startfile(path)
-        elif platform.system() == "Darwin":
+        elif sys.platform == "darwin":
             subprocess.Popen(["open", path])
         else:
             subprocess.Popen(["xdg-open", path])
 
     def api(self):
-        oauth = GoogleOAuth(self.settings, lambda s: self.store.save(s))
-        return DriveApi(oauth)
+        return self._api
+
+    def _run_worker(self, target, args):
+        try:
+            target(*args)
+        except InterruptedError:
+            self.events.put(("status", "Operation cancelled"))
+        except Exception as error:  # noqa: BLE001 - report worker failures through the UI queue
+            self.events.put(("error", str(error)))
+        finally:
+            self.events.put(("idle", None))
+
+    def _start_worker(self, target, args=()):
+        if self.busy:
+            self.status.set(
+                "An operation is running. Cancel it or wait for completion."
+            )
+            return False
+        self.busy = True
+        self.cancel.clear()
+        self.stats.reset()
+        threading.Thread(
+            target=self._run_worker, args=(target, args), daemon=True
+        ).start()
+        return True
+
+    def close(self):
+        self.closing = True
+        self.cancel.set()
+        self.root.destroy()
 
     def choose(self):
         x = filedialog.askdirectory(initialdir=self.dest.get() or str(Path.home()))
@@ -167,35 +207,43 @@ class App:
             self.store.save(self.settings)
 
     def settings_dialog(self):
+        if self.busy:
+            self.status.set("Wait for the current operation before changing settings.")
+            return
         from .settings_dialog import SettingsDialog
 
-        d = SettingsDialog(self.root, self.settings, self.store)
-        self.root.wait_window(d.top)
+        previous_client = self.settings.client_id
+        dialog = SettingsDialog(self.root, self.settings, self.store, self.logout)
+        self.root.wait_window(dialog.top)
+        if self.settings.client_id != previous_client and not self.busy:
+            self.logout()
+
+    def logout(self):
+        self._start_worker(self._logout_worker)
+
+    def _logout_worker(self):
+        self._api.oauth.logout()
+        (self.home / "inventory_cache.json").unlink(missing_ok=True)
+        self._api.items_by_id.clear()
+        self._api._path_memo.clear()
+        self.events.put(("items", ([], "signed out")))
+        self.events.put(("status", "Signed out. Click Refresh to sign in."))
 
     def refresh(self):
-        self.cancel.clear()
-        self.status.set("Loading Drive inventory...")
-        threading.Thread(target=self._refresh_worker, daemon=True).start()
+        if self._start_worker(self._refresh_worker):
+            self.status.set("Loading Drive inventory...")
 
     def _startup_worker(self):
-        try:
-            res = self.api().inventory(cancel=self.cancel, force_refresh=False)
-            if res:
-                items, source = res
-                self.events.put(("items", (items, source)))
-            else:
-                self.events.put(("status", "Ready. Click Refresh to load from Drive."))
-        except Exception as e:
-            self.events.put(("error", str(e)))
+        # Startup only reads local cache; sign-in is an explicit Refresh action.
+        items = InventoryCache(self.home / "inventory_cache.json").load()
+        if items is not None:
+            self.events.put(("items", (items, "cached")))
+        else:
+            self.events.put(("status", "Ready. Click Refresh to load from Drive."))
 
     def _refresh_worker(self):
-        try:
-            res = self.api().inventory(cancel=self.cancel, force_refresh=True)
-            if res:
-                items, source = res
-                self.events.put(("items", (items, source)))
-        except Exception as e:
-            self.events.put(("error", str(e)))
+        items, source = self.api().inventory(cancel=self.cancel, force_refresh=True)
+        self.events.put(("items", (items, source)))
 
     def render(self):
         q = self.search.get().lower()
@@ -224,185 +272,192 @@ class App:
         self.top_items_tree.delete(*self.top_items_tree.get_children())
         sorted_items = heapq.nlargest(10, self.items, key=lambda x: x.size)
         for idx, it in enumerate(sorted_items):
-            self.top_items_tree.insert("", "end", iid=str(idx), values=(it.name, it.size))
+            self.top_items_tree.insert(
+                "", "end", iid=str(idx), values=(it.name, it.size)
+            )
 
     def selected(self):
         return [self.items[int(x)] for x in self.tree.selection()]
 
     def download(self):
-        chosen = [x for x in self.selected() if not x.is_folder]
+        chosen = [item for item in self.selected() if not item.is_folder]
         if not chosen:
             return messagebox.showinfo("GDrive", "Select one or more files.")
-        if not self.dest.get() or not Path(self.dest.get()).is_dir():
+        destination = self.dest.get()
+        if not destination or not Path(destination).is_dir():
             return messagebox.showerror("GDrive", "Choose an existing destination.")
-        self.cancel.clear()
-        self.status.set("Downloading...")
-        threading.Thread(
-            target=self._download_worker, args=(chosen,), daemon=True
-        ).start()
+        if self._start_worker(self._download_worker, (chosen, destination)):
+            self.status.set("Downloading...")
 
     def _make_progress_callback(self, jobs):
-        total = sum(i.size for i, _ in jobs)
-        state = [0]
+        total = sum(item.size for item, _ in jobs)
+        positions = {}
+        lock = threading.Lock()
 
         def progress(item, current, size, speed, chunk=0):
-            self.events.put(
-                ("progress", (item.name, state[0] + current, total, speed, chunk))
-            )
+            with lock:
+                positions[item.id] = current
+                done = sum(positions.values())
+            self.events.put(("progress", (item.name, done, total, speed, chunk)))
 
-        def add_done(amount):
-            state[0] += amount
+        def add_done(item, amount):
+            with lock:
+                positions[item.id] = amount
 
         return progress, add_done
 
-    def _download_worker(self, chosen):
-        try:
-            api = self.api()
-            engine = TransferEngine(api, self.settings, self.log)
-            jobs = []
-            exports = []
-            for i in chosen:
-                if i.is_native:
-                    exports.append((i, safe_target(self.dest.get(), i.name)))
-                    continue
-                jobs.append((i, safe_target(self.dest.get(), i.name)))
-
-            for item, target in exports:
-                status, path, detail = export_workspace_file(api, item, target)
-                self.events.put(("queue", (item.name, status, detail)))
-
-            progress, add_done = self._make_progress_callback(jobs)
-
-            for item, result in engine.download_many(jobs, self.cancel, progress):
-                add_done(
-                    item.size if result[0] in ("verified", "already_verified") else 0
+    def _download_worker(self, chosen, destination):
+        api = self.api()
+        engine = TransferEngine(api, self.settings, self.log)
+        jobs = []
+        for item in chosen:
+            if self.cancel.is_set():
+                raise InterruptedError("cancelled")
+            target = safe_target(destination, item.name)
+            if item.is_native:
+                status, _, detail = export_workspace_file(
+                    api,
+                    item,
+                    target,
+                    cancel=self.cancel,
+                    auto_rename=self.settings.auto_rename,
                 )
-                self.events.put(("queue", (item.name, result[0], result[2])))
-            self.events.put(("status", "Queue complete"))
-        except Exception as e:
-            self.events.put(("error", str(e)))
+                self.events.put(("queue", (item.name, status, detail)))
+            else:
+                jobs.append((item, target))
+        progress, add_done = self._make_progress_callback(jobs)
+        for item, result in engine.download_many(jobs, self.cancel, progress):
+            add_done(
+                item, item.size if result[0] in ("verified", "already_verified") else 0
+            )
+            self.events.put(("queue", (item.name, result[0], result[2])))
+        self.events.put(
+            ("status", "Queue cancelled" if self.cancel.is_set() else "Queue complete")
+        )
 
     def _ask_user(self, title, message, buttons):
-        resp_queue = queue.Queue()
+        responses: queue.Queue[str] = queue.Queue()
+        self.events.put(("ask", (title, message, buttons, responses)))
+        while not self.cancel.is_set() and not self.closing:
+            try:
+                return responses.get(timeout=0.1)
+            except queue.Empty:
+                pass
+        return "No to all"
 
-        def ask():
-            class CustomDialog:
-                def __init__(self, parent):
-                    self.top = tk.Toplevel(parent)
-                    self.top.title(title)
-                    ttk.Label(
-                        self.top,
-                        text=message,
-                    ).pack(padx=20, pady=10)
-                    self.result = "No"
-                    btn_frame = ttk.Frame(self.top)
-                    btn_frame.pack(pady=10)
+    def _show_prompt(self, title, message, buttons, responses):
+        if self.cancel.is_set() or self.closing:
+            responses.put("No to all")
+            return
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        ttk.Label(dialog, text=message, wraplength=600).pack(padx=20, pady=10)
+        frame = ttk.Frame(dialog)
+        frame.pack(pady=10)
+        answer = ["No"]
 
-                    def set_res(val):
-                        self.result = val
-                        self.top.destroy()
+        def finish(value):
+            answer[0] = value
+            dialog.destroy()
 
-                    for text in buttons:
-                        ttk.Button(
-                            btn_frame,
-                            text=text,
-                            command=lambda t=text: set_res(t),
-                        ).pack(side="left", padx=5)
-
-                    self.top.wait_window()
-
-            d = CustomDialog(self.root)
-            resp_queue.put(d.result)
-
-        self.root.after_idle(ask)
-        return resp_queue.get()
+        for label in buttons:
+            ttk.Button(frame, text=label, command=partial(finish, label)).pack(
+                side="left", padx=5
+            )
+        dialog.wait_window()
+        responses.put(answer[0])
 
     def trash(self):
-        chosen = [x for x in self.selected() if x.can_trash]
+        chosen = [
+            item for item in self.selected() if item.can_trash and not item.is_folder
+        ]
         if not chosen:
             return
-        if not self.dest.get() or not Path(self.dest.get()).is_dir():
+        destination = self.dest.get()
+        if not destination or not Path(destination).is_dir():
             return messagebox.showerror(
                 "GDrive", "Choose an existing destination for download before trashing."
             )
-        threading.Thread(target=self._trash_worker, args=(chosen,), daemon=True).start()
+        if self._start_worker(self._trash_worker, (chosen, destination)):
+            self.status.set("Verifying files before Trash...")
 
-    def _trash_worker(self, chosen):
-        try:
-            api = self.api()
-            engine = TransferEngine(api, self.settings, self.log)
-            jobs = []
-            for i in chosen:
-                if i.is_native:
-                    target = safe_target(self.dest.get(), i.name)
-                    status, path, detail = export_workspace_file(api, i, target)
-                    if status == "exported_unverifiable":
-                        ans = self._ask_user(
-                            "Confirm Trash Workspace Export",
-                            f"Exported Workspace file {i.name}.\nMD5 cannot be verified. Are you sure you want to trash it?",
-                            ["Yes", "No"],
-                        )
-                        if ans == "Yes":
-                            api.trash(i)
-                            self.events.put(("queue", (i.name, "trashed", "Moved to Drive Trash")))
-                        else:
-                            self.events.put(("queue", (i.name, "skipped", "User cancelled trash of export")))
-                    else:
-                        self.events.put(("queue", (i.name, "skipped", f"Export failed: {detail}")))
-                    continue
-                jobs.append((i, safe_target(self.dest.get(), i.name)))
-
-            progress, add_done = self._make_progress_callback(jobs)
-
-            yes_to_all = False
-            for item, result in engine.download_many(jobs, self.cancel, progress):
-                status, path, detail = result
-                add_done(item.size if status in ("verified", "already_verified") else 0)
-
-                if status in ("verified", "already_verified"):
-                    if not yes_to_all:
-                        ans = self._ask_user(
-                            "Confirm Trash",
-                            f"Trash verified file {item.name}?",
-                            ["Yes", "Yes to all", "No", "No to all"],
-                        )
-
-                        if ans == "No to all":
-                            break
-                        elif ans == "Yes to all":
-                            yes_to_all = True
-                            ans = "Yes"
-                    else:
-                        ans = "Yes"
-
-                    if ans == "Yes":
-                        api.trash(item)
-                        self.events.put(
-                            ("queue", (item.name, "trashed", "Moved to Drive Trash"))
-                        )
-                    else:
-                        self.events.put(
-                            ("queue", (item.name, "skipped", "User cancelled trash"))
-                        )
-                else:
-                    self.events.put(
+    def _trash_worker(self, chosen, destination):
+        api = self.api()
+        engine = TransferEngine(api, self.settings, self.log)
+        jobs = []
+        for item in chosen:
+            if self.cancel.is_set():
+                raise InterruptedError("cancelled")
+            if item.is_native or item.is_folder:
+                self.events.put(
+                    (
+                        "queue",
                         (
-                            "queue",
-                            (item.name, "skipped", f"Verification failed: {detail}"),
-                        )
+                            item.name,
+                            "skipped",
+                            "Workspace files and folders are retained on Drive",
+                        ),
                     )
-
-            self.events.put(("status", "Trash operation complete"))
-        except Exception as e:
-            self.events.put(("error", str(e)))
+                )
+                continue
+            jobs.append((item, safe_target(destination, item.name)))
+        progress, add_done = self._make_progress_callback(jobs)
+        yes_to_all = False
+        for item, result in engine.download_many(jobs, self.cancel, progress):
+            status, path, detail = result
+            add_done(
+                item, item.size if status in ("verified", "already_verified") else 0
+            )
+            if self.cancel.is_set():
+                break
+            if status not in ("verified", "already_verified"):
+                self.events.put(
+                    ("queue", (item.name, "skipped", f"Verification failed: {detail}"))
+                )
+                continue
+            answer = (
+                "Yes"
+                if yes_to_all
+                else self._ask_user(
+                    "Confirm Trash",
+                    f"Trash verified file {item.name}?",
+                    ["Yes", "Yes to all", "No", "No to all"],
+                )
+            )
+            if self.cancel.is_set() or answer == "No to all":
+                self.cancel.set()
+                break
+            if answer == "Yes to all":
+                yes_to_all = True
+                answer = "Yes"
+            if answer == "Yes":
+                try:
+                    api.trash_verified(item, Path(path), cancel=self.cancel)
+                except InterruptedError:
+                    raise
+                except (OSError, ValueError) as error:
+                    self.events.put(("queue", (item.name, "failed", str(error))))
+                    continue
+                self.events.put(
+                    ("queue", (item.name, "trashed", "Moved to Drive Trash"))
+                )
+            else:
+                self.events.put(
+                    ("queue", (item.name, "skipped", "User declined trash"))
+                )
+        self.events.put(
+            (
+                "status",
+                "Trash cancelled"
+                if self.cancel.is_set()
+                else "Trash operation complete",
+            )
+        )
 
     def _sanitize_csv_value(self, value):
-        if value is None:
-            return ""
-        s = str(value)
-        if s.startswith(("=", "+", "-", "@")):
-            return "'" + s
-        return s
+        return sanitize_csv_field("" if value is None else str(value))
 
     def export_csv(self):
         path = filedialog.asksaveasfilename(
@@ -436,7 +491,9 @@ class App:
             w = csv.writer(f)
             w.writerow(["Name", "State", "Detail"])
             for child in self.queue.get_children():
-                w.writerow([sanitize_csv_field(v) for v in self.queue.item(child)["values"]])
+                w.writerow(
+                    [sanitize_csv_field(v) for v in self.queue.item(child)["values"]]
+                )
         self.status.set("Queue CSV exported: " + path)
 
     def export_session_report(self):
@@ -459,10 +516,16 @@ class App:
         self.status.set("Session report exported: " + path)
 
     def _drain(self):
+        if self.closing:
+            return
         try:
             while True:
                 kind, data = self.events.get_nowait()
-                if kind == "items":
+                if kind == "idle":
+                    self.busy = False
+                elif kind == "ask":
+                    self._show_prompt(*data)
+                elif kind == "items":
                     items, source = data
                     self.items = items
                     self.render()
@@ -475,7 +538,7 @@ class App:
                         self.stats.verified_count += 1
                     elif state == "skipped":
                         self.stats.ignored_count += 1
-                    elif state == "error":
+                    elif state in ("error", "failed"):
                         self.stats.error_count += 1
                 elif kind == "progress":
                     name, done, total, speed, chunk = data
@@ -494,6 +557,8 @@ class App:
         except queue.Empty:
             pass
 
+        if self.closing:
+            return
         self.stats_label.set(
             f"Stats: {self.stats.items_count} items | {self.stats.bytes_transferred / 1024 / 1024:.2f} MB transferred | {self.stats.avg_throughput / 1024 / 1024:.2f} MB/s"
         )

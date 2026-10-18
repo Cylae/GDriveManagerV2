@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import json
+import os
 import urllib.parse
 import urllib.request
+from pathlib import Path
+
 from ..domain.models import DriveItem
 from ..utils.retry import with_retry
 from .cache import InventoryCache
-from pathlib import Path
-import os
 from .oauth import GoogleOAuth
 
 
@@ -15,10 +17,9 @@ class DriveApi:
         self.oauth = oauth
         self.items_by_id: dict[str, DriveItem] = {}
         self._path_memo: dict[str, str] = {}
-        self.oauth = oauth
 
     @with_retry()
-    def _request(self, url, method="GET", body=None, headers=None):
+    def _request(self, url, method="GET", body=None, headers=None, *, cancel=None):
         h = {"Authorization": "Bearer " + self.oauth.token(), **(headers or {})}
         req = urllib.request.Request(url, data=body, headers=h, method=method)
         return urllib.request.urlopen(req, timeout=60)
@@ -30,10 +31,12 @@ class DriveApi:
         cached_items = cache.load()
         if cached_items is not None and not force_refresh:
             self.items_by_id = {i.id: i for i in cached_items}
+            self._path_memo.clear()
             return cached_items, "cached"
 
         all_items = self._fetch_all_items(cancel)
         self.items_by_id = {i.id: i for i in all_items}
+        self._path_memo.clear()
         for i in all_items:
             i.drive_path = self.resolve_path(i.id)
         cache.save(all_items)
@@ -55,13 +58,15 @@ class DriveApi:
             if page:
                 q["pageToken"] = page
             with self._request(
-                "https://www.googleapis.com/drive/v3/files?" + urllib.parse.urlencode(q)
+                "https://www.googleapis.com/drive/v3/files?"
+                + urllib.parse.urlencode(q),
+                cancel=cancel,
             ) as r:
                 data = json.load(r)
             for x in data.get("files", []):
                 mime = x["mimeType"]
                 caps = x.get("capabilities", {})
-                raw = x.get("quotaBytesUsed", x.get("size", "0"))
+                raw = x.get("size", "0")
                 try:
                     size = int(raw)
                 except (ValueError, TypeError):
@@ -109,7 +114,7 @@ class DriveApi:
             h["Range"] = f"bytes={offset}-"
         return urllib.request.Request(self.binary_url(item), headers=h)
 
-    def trash(self, item):
+    def trash(self, item, *, cancel=None):
         data = b'{"trashed":true}'
         headers = {"Content-Type": "application/json"}
         with self._request(
@@ -118,8 +123,39 @@ class DriveApi:
             method="PATCH",
             body=data,
             headers=headers,
+            cancel=cancel,
         ):
             pass
+
+    def trash_verified(self, item: DriveItem, path: Path, *, cancel=None) -> None:
+        """Recheck live metadata and the local copy immediately before trashing."""
+        from .verification import verify_binary
+
+        if item.is_native or item.is_folder or not item.can_trash or not item.md5:
+            raise ValueError("Only verifiable binary files may be moved to Trash")
+        ok, _, _, detail = verify_binary(item, path, cancel=cancel)
+        if not ok:
+            raise ValueError(detail)
+        url = "https://www.googleapis.com/drive/v3/files/" + urllib.parse.quote(
+            item.id, safe=""
+        )
+        with self._request(
+            url + "?fields=size,md5Checksum,trashed,capabilities(canTrash)",
+            cancel=cancel,
+        ) as response:
+            metadata = json.load(response)
+        if (
+            metadata.get("trashed")
+            or not metadata.get("capabilities", {}).get("canTrash")
+            or str(metadata.get("size")) != str(item.size)
+            or str(metadata.get("md5Checksum", "")).lower() != item.md5.lower()
+        ):
+            raise ValueError(
+                "Drive file changed since inventory; refresh before trashing"
+            )
+        if cancel is not None and cancel.is_set():
+            raise InterruptedError("cancelled")
+        self.trash(item, cancel=cancel)
 
     def resolve_path(self, item_id: str, depth: int = 0) -> str:
         if item_id in self._path_memo:
