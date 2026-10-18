@@ -1,8 +1,10 @@
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
+
 from gdsm.domain.models import DriveItem
 from gdsm.services.cache import InventoryCache
+
 
 class WindowsCacheTests(unittest.TestCase):
     def setUp(self):
@@ -18,13 +20,10 @@ class WindowsCacheTests(unittest.TestCase):
             "1", "f", "text", 0, None, "", "", ("2",), False, False, False, False
         )
         self.cache.save([item])
-
-        # Read the file in binary mode to check exact bytes written
         with open(self.cache_file, "rb") as f:
             content = f.read()
-
-        # The json dump should not produce \r\r\n
         self.assertNotIn(b"\r\r\n", content)
+
 
 if __name__ == "__main__":
     unittest.main()

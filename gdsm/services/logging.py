@@ -1,11 +1,15 @@
 from __future__ import annotations
+
+import contextlib
 import json
+import threading
 from pathlib import Path
 
 
 class Logger:
     def __init__(self, path: Path, max_size: int = 5 * 1024 * 1024):
         self.path = path
+        self._lock = threading.Lock()
         self.max_size = max_size
         self.session_id = __import__("uuid").uuid4().hex
 
@@ -13,12 +17,14 @@ class Logger:
         if target.exists() and target.stat().st_size >= self.max_size:
             import os
 
-            try:
+            with contextlib.suppress(OSError):
                 os.replace(target, target.with_suffix(target.suffix + ".old"))
-            except OSError:
-                pass
 
     def write(self, level: str, message: str, **data):
+        with self._lock:
+            self._write(level, message, **data)
+
+    def _write(self, level: str, message: str, **data):
         import datetime
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,7 +35,7 @@ class Logger:
         self._rotate(jsonl_path)
         self._rotate(log_path)
 
-        ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        ts = datetime.datetime.now(datetime.UTC).isoformat()
         row = {
             "timestamp_utc": ts,
             "session_id": self.session_id,

@@ -1,15 +1,22 @@
 import tkinter as tk
+from dataclasses import replace
 from tkinter import ttk
+
 from ..domain.models import Settings
 from ..storage.settings import JsonStore
 
 
 class SettingsDialog:
-    def __init__(self, parent: tk.Tk, settings: Settings, store: JsonStore):
+    def __init__(
+        self, parent: tk.Tk, settings: Settings, store: JsonStore, on_logout=None
+    ):
         self.settings = settings
         self.store = store
+        self.on_logout = on_logout
         self.top = tk.Toplevel(parent)
         self.top.title("Settings")
+        self.top.transient(parent)
+        self.top.grab_set()
 
         self.client_id = tk.StringVar(value=self.settings.client_id)
         self.lang = tk.StringVar(value=self.settings.language)
@@ -64,29 +71,31 @@ class SettingsDialog:
         btn_frame = ttk.Frame(f)
         btn_frame.grid(row=7, column=0, columnspan=2, pady=15)
         ttk.Button(btn_frame, text="Save", command=self.save).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Logout", command=self.logout).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Logout", command=self.logout).pack(
+            side="left", padx=5
+        )
 
     def logout(self):
-        from ..storage.secrets import delete_secret
-        delete_secret("refresh_token")
-        self.settings.client_id = ""
-        self.store.save(self.settings)
-        self.client_id.set("")
-        from tkinter import messagebox
-        messagebox.showinfo("Logout", "Logged out successfully. All local credentials removed.", parent=self.top)
+        if self.on_logout is not None:
+            self.on_logout()
+        self.top.destroy()
 
     def save(self):
         try:
-            self.settings.client_id = self.client_id.get().strip()
-            self.settings.language = self.lang.get()
-            self.settings.concurrency = self.concurrency.get()
-            self.settings.retries = self.retries.get()
-            self.settings.auto_rename = self.auto_rename.get()
-            self.settings.keep_partial = self.keep_partial.get()
-            self.settings.theme = self.theme.get()
-            self.store.save(self.settings)
+            updated = replace(
+                self.settings,
+                client_id=self.client_id.get().strip(),
+                language=self.lang.get(),
+                concurrency=self.concurrency.get(),
+                retries=self.retries.get(),
+                auto_rename=self.auto_rename.get(),
+                keep_partial=self.keep_partial.get(),
+                theme=self.theme.get(),
+            )
+            self.store.save(updated)
+            self.settings.__dict__.update(updated.__dict__)
             self.top.destroy()
-        except ValueError as e:
+        except (ValueError, OSError, tk.TclError) as e:
             from tkinter import messagebox
 
             messagebox.showerror("Settings Error", str(e), parent=self.top)
